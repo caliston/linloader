@@ -1,71 +1,209 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: id_sys.c,v 1.6 1999/08/11 20:18:30 uid1 Exp $ */
+/* $Id: id_sys.c,v 1.7 2004/03/21 18:54:25 pnaulls Exp $ */
 
 #include "internal.h"
 #include <stdio.h>
+#include <string.h>
 
-const int lll_sys_to_linux[] = {-1, -1, -1, 1, 1, 1};
+#include "msgs.h"
 
-unsigned lll_sys_id;
-char *lll_sys_name = 0;
+
+const int lll_sys_to_linux[] = {
+    -1,
+    -1,
+    -1,
+     1,
+     1,
+     1,
+     46,
+     122,
+     291};
+
+static const char *machine_names[] = {
+    "",
+    "Archimedes/A5000",
+    "",
+    "RiscPC",
+    "A7000",
+    "A7000+",
+    "RiscStation",
+    "Bush STB",
+    "Castle IYONIX"
+};
+
+
+lll_id lll_sys_id;
+const char *lll_sys_name;
 int lll_debug;
 
-void lll_id_sys(void) {
-  unsigned mc_id, proc_id, proc_arch;
-  int dram_layout_is_riscpc;
-  if (lll_sys_id) return;
-  if (!lll_pages) lll_check_ram();
-  mc_id = lll_get_mc_id();
-  lll_sys_id = 0;
-  if (mc_id == 0) {
-    proc_arch = 2;
-    lll_sys_id = 1;
-    lll_sys_name = "Archimedies/A5000";
-  }
-  proc_id = lll_get_proc_id();
-  dram_layout_is_riscpc = lll_rpc_bank[0] + lll_rpc_bank[1] + lll_rpc_bank[2] + lll_rpc_bank[3] == lll_pages;
-  proc_arch = 3;
-  if (mc_id == 0x5B980001 && dram_layout_is_riscpc && lll_rpc_vram_pages == 0) {
-    lll_sys_name = "A7000";
-    lll_sys_id = 4;
-  }
-  else if (mc_id == 0xAA7C0001 && dram_layout_is_riscpc && lll_rpc_vram_pages == 0) {
-    lll_sys_name = "A7000+";
-    lll_sys_id = 5;
-  }
-  else if (mc_id == 0xD4E70001 && dram_layout_is_riscpc && (lll_rpc_vram_pages == 0 || lll_rpc_vram_pages == 0x100 || lll_rpc_vram_pages == 0x200)) {
-    if ((proc_id & 0xFFFFFFF0) == 0x4401A100) {
-      lll_sys_name = "StrongARM Risc PC";
-      proc_arch = 4;
-      lll_sys_id = 3;
+unsigned int lll_phys_memory = PHYS_MEM_RPC;
+
+void lll_id_sys(void)
+{
+    unsigned mc_id, proc_id, proc_arch;
+    int dram_layout_is_riscpc;
+    int bank;
+
+    /* If a sys is already selected then exit */
+    if (lll_sys_id != lll_id_unknown)
+      return;
+
+    if (!lll_pages)
+      lll_check_ram();/* Finds amount of RAM in each bank */
+
+    mc_id = lll_get_mc_id(); /* Reads IOMD ID registers */
+
+    /* mc_id routine returns 0 for old style hardare */
+    if (mc_id == 0)
+    {
+      proc_arch = 2;
+      lll_sys_id = lll_id_archimedes;
+      lll_sys_name = machine_names[lll_sys_id];
+      return; /* VRS - Untested, but I can't see an A5000 executing the rest*/
     }
-    else if ((proc_id & 0xFFF8F000) == 0x41007000) {
-      lll_sys_name = "Risc PC 700";
-      lll_sys_id = 3;
+
+    proc_id = lll_get_proc_id(); /* Get processor ID */
+
+    /* Find if DRAM layout is the same as a RiscPC */
+    {
+      unsigned int size = 0;
+
+      for (bank = 0; bank < NUM_BANKS; bank++) {
+        size += lll_memory_bank[bank].size;
+      }
+
+      dram_layout_is_riscpc = (lll_pages == size);
     }
-    else if ((proc_id & 0xFFFFFF00) == 0x41560600) {
-      lll_sys_name = "Risc PC 600";
-      lll_sys_id = 3;
+
+    proc_arch = 3;
+
+    if (mc_id == 0x5B980001 &&
+        dram_layout_is_riscpc &&
+        lll_rpc_vram_pages == 0)
+    {
+        lll_sys_id = lll_id_a7000;
     }
-  }
-  if (!lll_sys_name) lll_sys_name = lll_getmsg("lll_unrec");
-  if (lll_debug) fprintf(stderr, "lll_sys_name = %s\nlll_sys_id = %i\ndram_layout_is_riscpc = %i\nlll_rpc_vram_pages = %i\nlll_pages = %i\nlll_rpc_bank[] = {%i, %i, %i, %i}\nproc_id = 0x%X\nmc_id = 0x%X\n", lll_sys_name, lll_sys_id, dram_layout_is_riscpc, lll_rpc_vram_pages, lll_pages, lll_rpc_bank[0], lll_rpc_bank[1], lll_rpc_bank[2], lll_rpc_bank[3], proc_id, mc_id);
+    else if (mc_id == 0xAA7C0001 &&
+        dram_layout_is_riscpc &&
+        lll_rpc_vram_pages == 0)
+    {
+       /* Ok, it's an A7000+ type machine -
+          Need to check if it's a RiscStaion */
+      if (lll_is_riscstation())
+      {
+         lll_sys_id = lll_id_riscstation;
+      }
+      else
+      {
+         /* Assume A7000+ */
+         lll_sys_id = lll_id_a7000p;
+       }
+    }
+    else if (mc_id == 0xAA7C0001 &&
+           ((proc_id & 0xFFF8F000) == 0x41007000 ) &&
+           lll_rpc_vram_pages == 0)
+    {
+	/* Seems that the Bush box RISC OS doesn't look like an
+	   A7000+ - useful for us */
+	lll_sys_id = lll_id_bush;
+	lll_memory_bank[NUM_BANKS - 4].size = 1024; /* Nasty 4MB fix */
+	lll_memory_bank[NUM_BANKS - 3].size = 1024; /* Nasty 4MB fix */
+    }
+    else if (mc_id == 0xD4E70001 &&
+	     (lll_rpc_vram_pages == 0 || lll_rpc_vram_pages == 0x100 || lll_rpc_vram_pages == 0x200))
+    {
+	if ((proc_id & 0xFFFFFFF0) == 0x4401A100)
+	{
+            if (dram_layout_is_riscpc)
+	      lll_sys_name = "StrongARM RiscPC";
+	    else
+	      lll_sys_name = "Kinetic RiscPC";
+	    proc_arch = 4;
+	    lll_sys_id = lll_id_riscpc;
+	}
+	else if ((proc_id & 0xFFF8F000) == 0x41007000)
+	{
+	    lll_sys_name = "RiscPC 700";
+	    lll_sys_id = lll_id_riscpc;
+	}
+	else if ((proc_id & 0xFFFFFF00) == 0x41560600)
+	{
+	    lll_sys_name = "RiscPC 600";
+	    lll_sys_id = lll_id_riscpc;
+	}
+    }
+    else if ((proc_id & 0xfffff7e0) == 0x69052420) {
+      lll_sys_id = lll_id_iyonix;
+
+      if (lll_pages > 131072) {
+        /* Limit to 576MB */
+        lll_memory_bank[0].size = lll_pages = 131072;
+        lll_memory_bank[0].offset = PHYS_MEM_IYONIX;
+  
+//        lll_pages += (lll_memory_bank[1].size = 0x4000);
+//        lll_memory_bank[1].offset = 0xf0000000;
+
+      } else {
+        /* Account for 4MB used by RISC OS loaded from flash. */
+        lll_memory_bank[0].size = (lll_pages += (4 * 1024 * 1024) / PAGE_SIZE);
+      }
+
+      lll_phys_memory = PHYS_MEM_IYONIX;
+    }
+
+
+    if (lll_sys_id == lll_id_riscpc) {
+      /* RISC OS Select claims 6MB from one of the banks.
+         We can figure out which one by looking for which bank contains
+         a number of pages not divisible by 4MB.  This will fail on
+         systems with 2MB SIMMs, but that's an unlikely setup */
+
+      for (bank = 0; bank < NUM_BANKS; bank++) {
+        if (lll_memory_bank[bank].size % ((4 * 1024 * 1024) / PAGE_SIZE) != 0) {
+          lll_memory_bank[bank].size += (6 * 1024 * 1024) / PAGE_SIZE;
+          lll_pages += (6 * 1024 * 1024) / PAGE_SIZE;
+          break;
+        }
+      }
+    }
+
+
+    if (lll_sys_name == NULL && lll_sys_id > 0 && lll_sys_id < lll_id_max)
+      lll_sys_name = machine_names[lll_sys_id];
+
+    if (lll_sys_name == NULL || strcmp(lll_sys_name, "") == 0)
+      lll_sys_name = getmsg("lll_unrec");
+
+    printf("lll_sys_name = %s\nlll_sys_id = %i\ndram_layout_is_riscpc = %i\n"
+           "lll_rpc_vram_pages = %i\nlll_pages = %i\n"
+           "lll_memory_bank[] = {",
+           lll_sys_name,
+           lll_sys_id,
+           dram_layout_is_riscpc,
+           lll_rpc_vram_pages,
+           lll_pages);
+
+    for (bank = 0; bank < NUM_BANKS; bank++) {
+      printf("%d%s", lll_memory_bank[bank].size, (bank == NUM_BANKS - 1) ? "" : ", ");
+    }
+
+   printf("}\nproc_id = 0x%X\nmc_id = 0x%X\n", proc_id, mc_id);
 }

@@ -1,0 +1,114 @@
+/* msgs.c
+ *
+ * messagetrans handling
+ *
+ * This program is GPL see the LICENCEING file for details
+ *
+ * (c) V.R.Sanders 2002
+ *
+ * $Id: msgs.c,v 1.1.1.1 2003/02/28 17:25:29 kyllikki Exp $
+ *
+ */
+
+#include <stdlib.h>
+
+#include "oslib/os.h"
+#include "oslib/messagetrans.h"
+
+#include "xmalloc.h"
+#include "msgs.h"
+
+messagetrans_control_block lll_msgs;
+extern char * lll_name;
+extern char * lll_message_file;
+
+char *lll_message_file = DEF_MSG_FILENAME;
+
+/* prints a message trans message
+ * no I cant use a vararg version coz otehrwise the format string would need to
+ * show how many vars or a seperate arg count would be needed */
+int printmsg_vars(const char * msg_id,
+		  const char * var1,
+		  const char * var2,
+		  const char * var3,
+		  const char * var4 )
+{
+    char buffer[1024];
+    int length;
+    messagetrans_gs_lookup(&lll_msgs,
+			   msg_id,
+			   buffer,
+			   sizeof(buffer),
+			   var1,
+			   var2,
+			   var3,
+			   var4,
+			   &length);
+    os_write0(buffer);
+    os_new_line();
+
+    return length;
+}
+
+/* prints a message with no replacement vars */
+int printmsg(const char * msg_id)
+{
+    return printmsg_vars(msg_id,NULL,NULL,NULL,NULL);
+}
+
+
+
+/* obtains a message into a allocated string -
+ * returned string needs freeing
+ */
+char *getmsg_vars(const char * msg_id,
+		  const char * var1,
+		  const char * var2,
+		  const char * var3,
+		  const char * var4 )
+{
+    char *buffer;
+    int length;
+
+    buffer=malloc(1024);
+    if(!buffer)
+	return NULL;
+
+    messagetrans_gs_lookup(&lll_msgs,
+			   msg_id,
+			   buffer,
+			   1024,
+			   var1,
+			   var2,
+			   var3,
+			   var4,
+			   &length);
+
+    return buffer;
+
+}
+
+char *getmsg(const char * msg_id)
+{
+    return getmsg_vars(msg_id,NULL,NULL,NULL,NULL);
+}
+
+
+/* loads messages from message file */
+void loadmsgs(void)
+{
+    int size;
+    static int loaded = 0;
+
+    if (loaded)
+	return;
+
+    messagetrans_file_info(lll_message_file, 0, &size);
+
+    messagetrans_open_file(&lll_msgs, lll_message_file, lll_xmalloc(size));
+
+    if (!lll_name)
+	lll_name = getmsg("lll_name");
+
+    loaded = 1;
+}

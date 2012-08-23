@@ -1,23 +1,23 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: main.c,v 1.8 1999/08/11 20:18:46 uid1 Exp $ */
+/* $Id: main.c,v 1.4 2004/01/20 17:41:23 pnaulls Exp $ */
 
 #include <stdio.h>
 #include <signal.h>
@@ -26,129 +26,166 @@
 #include <stdarg.h>
 #include "kernel.h"
 
-#include "os.h"
-#include "osbyte.h"
+#include "oslib/os.h"
+#include "oslib/osbyte.h"
 
 #include "getopt.h"
+
 
 #define LLL_USE_OSLIB
 #include "lll.h"
 
-char *lll_message_file;
+#include "msgs.h"
 
-void signal_handler(int n) {
-  _kernel_raise_error(_kernel_last_oserror());
+void signal_handler(int n)
+{
+    n = n;
+    _kernel_raise_error(_kernel_last_oserror());
 }
 
-int in(char c, char const *s) {
-  while(*s != 0 && *s != c) s++;
-  return *s == c;
+int in(char c, char const *s)
+{
+    while(*s != 0 && *s != c) s++;
+    return *s == c;
 }
 
-int main(int argc, char **argv) {
-  char commandline[2048];
-  char *initrd_file = 0, *kernel_file = 0;
-  const char *show_text = 0;
-  int c, clear = 1, banner = 1, i, j, extra = 0;
+int main(int argc, char **argv)
+{
+    char commandline[2048];
+    char *initrd_file = 0, *kernel_file = 0;
+    const char *show_text = 0;
+    int c, clear = 1, banner = 1, i, j, extra = 0, tmp;
 #ifdef CHECK_MEM
-  {
-    extern void __heap_checking_on_all_allocates(int on);
-    extern void __heap_checking_on_all_deallocates(int on);
-    __heap_checking_on_all_allocates(1);
-    __heap_checking_on_all_deallocates(1);
-  }
+    {
+	extern void __heap_checking_on_all_allocates(int on);
+	extern void __heap_checking_on_all_deallocates(int on);
+	__heap_checking_on_all_allocates(1);
+	__heap_checking_on_all_deallocates(1);
+    }
 #endif
-  lll_message_file = argv[--argc];
-  signal(SIGOSERROR, signal_handler);
-  lll_load_msgs();
-  do {
-    static const struct option long_options[] = {
-      {"kernel", 1, 0, 'k'},
-      {"initrd", 1, 0, 'i'},
-      {"no-clear", 0, 0, 'c'},
-      {"quiet", 0, 0, 'q'},
-      {"dry-run", 0, 0, 'd'},
-      {"extra-arguments", 0, 0, 'e'},
-      {"help", 0, 0, 'h'},
-      {"credits", 0, 0, 1},
-      {"debug", 0, 0, 2},
-      {0, 0, 0, 0}};
-    c = getopt_long(argc, argv, "W;k:i:cqeh", long_options, 0);
-    switch(c) {
-      case 'k':
-        if (kernel_file) lll_die("\0\0\0\0lll_multikernel");
-        kernel_file = optarg;
-        break;
-      case 'i':
-        if (initrd_file) lll_die("\0\0\0\0lll_multird");
-        initrd_file = optarg;
-        break;
-      case 'c':
-        clear = 0;
-        break;
-      case 'q':
-        banner = 0;
-        break;
-      case 'd':
-        lll_noboot = 1;
-        break;
-      case 'e':
-        extra = 1;
-        break;
-      case 'h':
-        show_text = "lll_help";
-        break;
-      case 1:
-        show_text = "lll_credits";
-        break;
-      case 2:
-        lll_debug = 1;
-        break;
-    }
-  } while(c != -1);
-  if (show_text) {
-    char s[2048];
-    messagetrans_gs_lookup(&lll_msgs, show_text, s, 2048, 0, 0, 0, 0);
-    if(puts(s) == EOF) _kernel_raise_error(_kernel_last_oserror());
-    exit(EXIT_SUCCESS);
-  }
-  if (!kernel_file) {
-    if (optind >= argc) lll_die("\0\0\0\0lll_nokernel");
-    kernel_file = argv[optind++];
-  }
-  commandline[0] = 0;
-  j = 0;
-  for(i = optind; i < argc; i++) {
-    if (!memcmp(argv[i], "initrd=", 7)) {
-      if (initrd_file) lll_die("\0\0\0\0lll_multird");
-      initrd_file = argv[i] + 7;
-    } else {
-      commandline[j++] = ' ';
-      strcpy(commandline + j, argv[i]);
-      j += strlen(commandline + j);
-    }
-  }
-  if (extra) {
-    os_write0(j ? "Extra kernel arguments: " : "Kernel arguments: ");
-    os_read_line(commandline + j, 256 - j, 32, 256, 0);
-    if (!clear) os_new_line();
-  }
+    lll_message_file = argv[--argc];
+    lll_tag_list = 0;
 
-  lll_id_sys();
-  if (clear) osscreenmode_select(osscreenmode_current()); /* Clear screen */
-  if (banner) {
-    char s[1024];
-    messagetrans_gs_lookup(&lll_msgs, "lll_banner", s, 1024, lll_version, lll_sys_name, 0, 0);
-    os_write0(s);
-  }
+    signal(SIGOSERROR, signal_handler);
 
-  lll_boot_gzip(kernel_file, initrd_file, commandline, 0, 0);
-  if (lll_noboot) {
-    char s[128];
-    messagetrans_gs_lookup(&lll_msgs, "lll_anykey", s, 128, 0, 0, 0, 0);
-    os_write0(s);
-    os_new_line();
-    _kernel_osrdch();
-  } else lll_die("\0\0\0\0lll_bootfail");
-  return EXIT_SUCCESS;
+    /* load the messages file */
+    loadmsgs();
+
+    do {
+	static const struct option long_options[] = {
+	    {"kernel", 1, 0, 'k'},
+	    {"initrd", 1, 0, 'i'},
+	    {"tag", 0, 0, 't'},
+	    {"no-clear", 0, 0, 'c'},
+	    {"quiet", 0, 0, 'q'},
+	    {"dry-run", 0, 0, 'd'},
+	    {"extra-arguments", 0, 0, 'e'},
+	    {"help", 0, 0, 'h'},
+	    {"credits", 0, 0, 1},
+	    {"debug", 0, 0, 2},
+	    {0, 0, 0, 0}};
+	c = getopt_long(argc, argv, "W;k:i:cqeht", long_options, 0);
+	switch(c) {
+	case 'k':
+	    if (kernel_file) lll_die("\0\0\0\0lll_multikernel");
+	    kernel_file = optarg;
+	    break;
+	case 'i':
+	    if (initrd_file) lll_die("\0\0\0\0lll_multird");
+	    initrd_file = optarg;
+	    break;
+	case 'c':
+	    clear = 0;
+	    break;
+	case 't':
+	    lll_tag_list = 1;
+	    break;
+	case 'q':
+	    banner = 0;
+	    break;
+	case 'd':
+	    lll_noboot = 1;
+	    break;
+	case 'e':
+	    extra = 1;
+	    break;
+	case 'h':
+	    show_text = "lll_help";
+	    break;
+	case 1:
+	    show_text = "lll_credits";
+	    break;
+	case 2:
+	    lll_debug = 1;
+	    break;
+	}
+    } while(c != -1);
+
+    if (show_text) {
+	char s[2048];
+	messagetrans_gs_lookup(&lll_msgs, show_text, s, 2048, 0, 0, 0, 0, &tmp);
+	if(puts(s) == EOF) _kernel_raise_error(_kernel_last_oserror());
+	exit(EXIT_SUCCESS);
+    }
+
+    if (!kernel_file) {
+	if (optind >= argc) lll_die("\0\0\0\0lll_nokernel");
+	kernel_file = argv[optind++];
+    }
+
+    commandline[0] = 0;
+    j = 0;
+    for(i = optind; i < argc; i++) {
+	if (!memcmp(argv[i], "initrd=", 7)) {
+	    if (initrd_file) lll_die("\0\0\0\0lll_multird");
+	    initrd_file = argv[i] + 7;
+	} else {
+	    commandline[j++] = ' ';
+	    strcpy(commandline + j, argv[i]);
+	    j += strlen(commandline + j);
+	}
+    }
+
+    if (extra) {
+	os_write0(j ? "Extra kernel arguments: " : "Kernel arguments: ");
+	os_read_line(commandline + j, 256 - j, 32, 255, 0);
+	if (!clear) os_new_line();
+    }
+
+    lll_id_sys();
+
+    /* Clear screen */
+    if (clear) {
+	if (xosscreenmode_select(osscreenmode_current())) {
+	  os_cli("WimpMode 32");
+        }
+    }
+
+    /* print banner */
+    if (banner)
+    {
+	char s[1024];
+	int tmp;
+	messagetrans_gs_lookup(&lll_msgs,
+			       "lll_banner",
+			       s,
+			       1024,
+			       lll_version,
+			       lll_sys_name,
+			       0,
+			       0,
+			       &tmp);
+	os_write0(s);
+    }
+
+    lll_boot_gzip(kernel_file, initrd_file, commandline, 0, 0);
+
+    /* print exit message */
+    if (!lll_noboot)
+    {
+	lll_die("\0\0\0\0lll_bootfail");
+	return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }

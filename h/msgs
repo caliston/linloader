@@ -1,0 +1,28 @@
+/* $Id: msgs.h,v 1.1.1.1 2003/02/28 17:25:29 kyllikki Exp $ */
+
+#ifndef MSGS_H
+#define MSGS_H
+
+extern messagetrans_control_block lll_msgs;
+
+int printmsg_vars(const char * msg_id,
+		  const char * var1,
+		  const char * var2,
+		  const char * var3,
+		  const char * var4 );
+
+int printmsg(const char * msg_id);
+
+char *getmsg_vars(const char * msg_id,
+		  const char * var1,
+		  const char * var2,
+		  const char * var3,
+		  const char * var4 );
+
+char *getmsg(const char * msg_id);
+
+void loadmsgs(void);
+
+#define DEF_MSG_FILENAME "Messages.M1"
+
+#endif

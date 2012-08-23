@@ -1,23 +1,23 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: fpf_hack.c,v 1.2 1999/07/20 15:00:56 uid1 Exp $ */
+/* $Id: fpf_hack.c,v 1.2 2003/07/11 17:39:15 pnaulls Exp $ */
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -26,23 +26,24 @@
 #include "kernel.h"
 
 int fprintf_hack(FILE *stream, const char *format, ...) {
-  va_list ap;
-  int x;
-  va_start(ap, format);
-  if (stream == stderr) {
-    _kernel_oserror e;
-    char s[1024], *p;
-    vsprintf(s, format, ap);
-    p = s;
-    while(*p != ':') p++;
-    do p++; while(*p == ' ');
-    *p = toupper(*p);
-    strcpy(e.errmess, p);
-    e.errnum = 1;
-    _kernel_raise_error(&e);
-  } else {
-    x = vfprintf(stream, format, ap);
-  }
-  va_end(ap);
-  return x;
+    int x = 0;
+
+    va_list ap;
+    va_start(ap, format);
+    if (stream == stderr) {
+	_kernel_oserror e;
+	char s[1024], *p;
+	vsprintf(s, format, ap);
+	p = s;
+	while(*p != ':') p++;
+	do p++; while(*p == ' ');
+	*p = toupper(*p);
+	strcpy(e.errmess, p);
+	e.errnum = 1;
+	_kernel_raise_error(&e);
+    } else {
+	x = vfprintf(stream, format, ap);
+    }
+    va_end(ap);
+    return x;
 }

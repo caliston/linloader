@@ -1,0 +1,1 @@
+void *lll_xmalloc(size_t size);

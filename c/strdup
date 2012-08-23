@@ -1,11 +1,11 @@
-/* $Id: strdup.c,v 1.1 1999/08/11 18:23:06 uid1 Exp $ */
+/* $Id: strdup.c,v 1.1.1.1 2003/02/28 17:25:29 kyllikki Exp $ */
 
 #include "internal.h"
 #include <string.h>
 
 char *lll_strdup(char const *s) {
-  char *out;
-  out = lll_xmalloc(strlen(s) + 1);
-  strcpy(out, s);
-  return out;
+    char *out;
+    out = lll_xmalloc(strlen(s) + 1);
+    strcpy(out, s);
+    return out;
 }

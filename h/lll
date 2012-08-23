@@ -1,32 +1,45 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: lll.h,v 1.4 1999/08/11 20:18:40 uid1 Exp $ */
+/* $Id: lll.h,v 1.3 2004/01/20 17:41:23 pnaulls Exp $ */
 
 #ifndef LLL_H
 #define LLL_H
 
+#ifndef __STDC_VERSION__
+#define __STDC_VERSION__ 0
+#endif
+
+#ifndef __GNUG__
+#define __GNUG__ 0
+#endif
+
+#ifndef __GNUC_MINOR__
+#define __GNUC_MINOR__ 0
+#endif
+
+
 #include <stddef.h>
 
 #ifdef LLL_USE_OSLIB
-#include "osfind.h"
-#include "messagetrans.h"
+#include "oslib/osfind.h"
+#include "oslib/messagetrans.h"
 #define lll_osfind_flags osfind_flags
 #define lll_void byte
 extern messagetrans_control_block lll_msgs;
@@ -35,8 +48,17 @@ extern messagetrans_control_block lll_msgs;
 #define lll_void void
 #endif
 
-extern void lll_boot(char const *kernel_file, char const *initrd_file, char const *commandline, lll_osfind_flags flags, char const *path);
-extern void lll_boot_gzip(char const *kernel_file, char const *initrd_file, char const *commandline, lll_osfind_flags flags, char const *path);
+extern void lll_boot(char const *kernel_file,
+		     char const *initrd_file,
+		     char const *commandline,
+		     lll_osfind_flags flags,
+		     char const *path);
+
+extern void lll_boot_gzip(char const *kernel_file,
+			  char const *initrd_file,
+			  char const *commandline,
+			  lll_osfind_flags flags,
+			  char const *path);
 
 extern void lll_id_sys(void);
 extern void lll_init(void);
@@ -50,12 +72,32 @@ extern void lll_load_msgs(void);
 extern char *lll_strdup(char const *s);
 extern char *lll_getmsg(char const *tag);
 
+extern int lll_is_riscstation(void);
+
 extern const int lll_sys_to_linux[];
-extern char *lll_message_file, *lll_sys_name, *lll_name, *lll_version;
+extern char *lll_message_file, *lll_name;
+extern const char *lll_sys_name, *lll_version;
 extern int lll_noboot;
 extern lll_void *lll_initrd, *lll_kernel;
 extern int lll_debug;
+extern unsigned int lll_tag_list;
 
-extern unsigned lll_sys_id;
+/* Needs to be kept synchronised with the string table
+   in id_sys.c */
+typedef enum {
+  lll_id_unknown     = 0,
+  lll_id_archimedes  = 1,
+  lll_id_riscpc      = 3,
+  lll_id_a7000       = 4,
+  lll_id_a7000p      = 5,
+  lll_id_riscstation = 6,
+  lll_id_bush        = 7,
+  lll_id_iyonix      = 8,
+  lll_id_max
+} lll_id;
+
+
+
+extern lll_id lll_sys_id;
 
 #endif

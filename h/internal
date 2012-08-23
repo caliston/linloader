@@ -1,23 +1,23 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: internal.h,v 1.5 1999/08/11 20:18:34 uid1 Exp $ */
+/* $Id: internal.h,v 1.4 2004/03/21 18:56:05 pnaulls Exp $ */
 
 #ifndef INTERNAL_H
 #define INTERNAL_H
@@ -26,25 +26,49 @@
 
 #include "lll.h"
 
-#define PAGE_SIZE 0x1000
-#define PAGES 0x100000
-#define PARAM_SIZE 0x8000
-#define FIXUP_SIZE 0x40000
+#define NUM_BANKS                 8    /* Physical memory banks                                 */
+
+#define PAGE_SIZE            0x1000    /* 4K ARM page size                                      */
+#define PARAM_SIZE           0x8000    /* Maximum size of kernel parameters                     */
+#define FIXUP_SIZE          0x40000    /* Maximum size of fixup table                           */
+
+#define PHYS_MEM_RPC     0x10000000   /* Start of physical memory in RiscPC (and most machines) */
+#define PHYS_MEM_GAP      (1 << 26)   /* Gap between pages (not true for Kinetic)               */
+
+#define PHYS_MEM_IYONIX  0xc0000000   /* Iyonix physical memory start                           */
+#define PHYS_MEM_KINETIC 0x20000000   /* Additional Kinetic memory                              */
+
+
+struct lll_fixup_table {
+  unsigned int from;
+  unsigned int to;
+};
+
 
 struct da_handler_control {
-  unsigned reserve;
-  byte *fixup;
-  unsigned target;
-  byte *arrangement_table;
-  unsigned *page_to_physical;
+    unsigned reserve;
+    struct lll_fixup_table *fixup;
+    unsigned target;
+    byte *arrangement_table;
+    unsigned *page_to_physical;
 };
+
+struct lll_memory_bank {
+    unsigned int offset;
+    unsigned int size;
+};
+
+extern struct lll_memory_bank lll_memory_bank[NUM_BANKS];
 
 extern struct da_handler_control lll_da_ctrl;
 extern unsigned lll_fixup_physical_addr, lll_initrd_page;
 extern byte *lll_params;
 extern size_t lll_initrd_size, lll_kernel_size;
-extern unsigned lll_rpc_vram_pages, lll_rpc_bank[4], lll_pages;
+extern unsigned lll_rpc_vram_pages, lll_pages;
 
+extern unsigned int lll_phys_memory;
+
+extern void lll_mmu_off(unsigned fixup, unsigned archid, unsigned kernel, int page_size);
 
 extern void lll_check_ram(void);
 

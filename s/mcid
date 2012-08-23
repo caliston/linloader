@@ -16,7 +16,7 @@
 ; along with this program; if not, write to the Free Software
 ; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-;	$Id: mcid.s,v 1.4 1999/07/25 19:18:09 uid1 Exp $
+;	$Id: mcid.s,v 1.2 2003/03/29 12:07:04 pnaulls Exp $
 
 OS_Byte				*	&6
 OS_EnterOS			*	&16
@@ -28,13 +28,64 @@ c0	CN	0
 
 	AREA	ASM, CODE, READONLY
 
+	EXPORT	lll_is_riscstation
+lll_is_riscstation
+	mov	r0, #9
+        mov     r1, #3
+	swi	XOS_ReadSysInfo	; Read system info
+        bvs     not_riscstation
+        cmp     r0,#0
+        beq     not_riscstation
+        ldrb    r1,[r0,#0]      ; Test for R
+        cmp     r1,#'R'
+        bne     not_riscstation
+        ldrb    r1,[r0,#1]      ; Test for i
+        cmp     r1,#'i'
+        bne     not_riscstation
+        ldrb    r1,[r0,#2]      ; Test for s
+        cmp     r1,#'s'
+        bne     not_riscstation
+        ldrb    r1,[r0,#3]      ; Test for c
+        cmp     r1,#'c'
+        bne     not_riscstation
+        ldrb    r1,[r0,#4]      ; Test for S
+        cmp     r1,#'S'
+        bne     not_riscstation
+        ldrb    r1,[r0,#5]      ; Test for t
+        cmp     r1,#'t'
+        bne     not_riscstation
+        ldrb    r1,[r0,#6]      ; Test for a
+        cmp     r1,#'a'
+        bne     not_riscstation
+        ldrb    r1,[r0,#7]      ; Test for t
+        cmp     r1,#'t'
+        bne     not_riscstation
+        ldrb    r1,[r0,#8]      ; Test for i
+        cmp     r1,#'i'
+        bne     not_riscstation
+        ldrb    r1,[r0,#9]      ; Test for o
+        cmp     r1,#'o'
+        bne     not_riscstation
+        ldrb    r1,[r0,#10]      ; Test for n
+        cmp     r1,#'n'
+        bne     not_riscstation
+
+is_risctation
+        mov     r0,#1
+        mov     pc,r14
+not_riscstation
+        mov     r0,#0
+        mov     pc,r14
+
+
+
 	EXPORT	lll_get_proc_id
 lll_get_proc_id
 	mrs	a2, CPSR
 	swi	OS_EnterOS
 	mrc	p15, 0, a1, c0, c0	; Read processor id
-	msr	CPSR_all, a2
-	msr	CPSR_flg, r14
+	msr	CPSR_cf, a2
+	msr	CPSR_f, r14
 	mov	pc, r14
 
 	EXPORT	lll_get_mc_id
@@ -70,9 +121,9 @@ lll_get_mc_id
 	ldrb	r2, [r1, #&98]	; High byte of IOMD ID
 	orr	r0, r0, r2, LSL #24
 
-	msr	CPSR_all, r4
+	msr	CPSR_cf, r4
 return	mov	r4, ip
-	msr	CPSR_flg, r14
+	msr	CPSR_f, r14
 	mov	pc, r14
 
 	END

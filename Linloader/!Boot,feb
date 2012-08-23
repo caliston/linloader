@@ -1,0 +1,3 @@
+Set Linloader$Dir <Obey$Dir>
+Iconsprites <Linloader$Dir>.!Sprites
+

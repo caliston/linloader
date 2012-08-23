@@ -1,65 +1,148 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: ram.c,v 1.5 1999/08/11 20:18:57 uid1 Exp $ */
+/* $Id: ram.c,v 1.5 2004/03/21 18:52:04 pnaulls Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
-#include "os.h"
+#include "oslib/os.h"
 #include "internal.h"
 
-unsigned lll_rpc_vram_pages, lll_rpc_bank[4], lll_pages;
+unsigned lll_rpc_vram_pages, lll_pages;
 struct da_handler_control lll_da_ctrl;
 
-static unsigned find_ram(unsigned s, unsigned l, unsigned p2) {
-  unsigned p1, i = s;
-  if (p2 == lll_da_ctrl.page_to_physical[s]) do {
-    p1 = p2;
-    i++;
-    l--;
-    p2 = lll_da_ctrl.page_to_physical[i];
-  } while(l && p2 == p1 + PAGE_SIZE);
-  return i - s;
+/* RiscPC Physical memory banks.  Kinetic memory will ideally be placed first
+   so it is used in preference (being faster)                                 */
+struct lll_memory_bank lll_memory_bank[NUM_BANKS] = {
+      { PHYS_MEM_RPC, 0 },
+      { PHYS_MEM_RPC + PHYS_MEM_GAP * 1, 0 },
+      { PHYS_MEM_RPC + PHYS_MEM_GAP * 2, 0 },
+      { PHYS_MEM_RPC + PHYS_MEM_GAP * 3, 0 },
+};
+
+
+
+static unsigned find_ram(unsigned int start, unsigned int count, unsigned int p2)
+{
+    unsigned int p1 = 0, entry = start;
+
+    if (p2 == lll_da_ctrl.page_to_physical[start]) {
+      do {
+        p1 = p2;
+        entry++;
+        count--;
+        p2 = lll_da_ctrl.page_to_physical[entry];
+      } while(count && p2 == p1 + PAGE_SIZE);
+    }
+
+    return entry - start;
 }
 
-void lll_check_ram(void) {
-  int page_size;
-  unsigned i, j = 0;
-  size_t arrangement_table_size  = osmemory_read_arrangement_table_size(&page_size);
-  assert(page_size == PAGE_SIZE);
-  if (lll_da_ctrl.page_to_physical) return;
-  if (!lll_da_ctrl.arrangement_table) lll_da_ctrl.arrangement_table = lll_xmalloc(arrangement_table_size);
-  osmemory_read_arrangement_table(lll_da_ctrl.arrangement_table);
-  osmemory_read_size(osmemory_TYPE_DRAM << osmemory_TYPE_SHIFT, (int *)&lll_pages, (int *)&page_size);
-  assert(page_size == PAGE_SIZE);
-  assert(lll_pages != 0);
-  osmemory_read_size(osmemory_TYPE_VRAM << osmemory_TYPE_SHIFT, (int *)&lll_rpc_vram_pages, (int *)&page_size);
-  assert(page_size == PAGE_SIZE);
-  lll_da_ctrl.page_to_physical = lll_xmalloc((lll_pages + 1) * 4);
-  for(i = 0; i < arrangement_table_size && j <= lll_pages; i++) {
-    if ((lll_da_ctrl.arrangement_table[i] & 0x07) == 0x01) lll_da_ctrl.page_to_physical[j++] = i * 2 * PAGE_SIZE;
-    if ((lll_da_ctrl.arrangement_table[i] & 0x70) == 0x10) lll_da_ctrl.page_to_physical[j++] = (i * 2 + 1) * PAGE_SIZE;
-  }
-  assert(j == lll_pages);
-  i = lll_rpc_bank[0] = find_ram(0, 0x8000, 0x10000000);
-  i += lll_rpc_bank[1] = find_ram(i, 0x8000, 0x14000000);
-  i += lll_rpc_bank[2] = find_ram(i, 0x8000, 0x18000000);
-  lll_rpc_bank[3] = find_ram(i, 0x8000, 0x1C000000);
+void lll_check_ram(void)
+{
+    int page_size;
+    unsigned entry, page = 0;
+    size_t arrangement_table_size = osmemory_read_arrangement_table_size(&page_size);
+
+    assert(page_size == PAGE_SIZE);
+
+    if (lll_da_ctrl.page_to_physical)
+	return;
+
+    if (!lll_da_ctrl.arrangement_table)
+	lll_da_ctrl.arrangement_table = lll_xmalloc(arrangement_table_size);
+
+    memset(lll_da_ctrl.arrangement_table, 0, arrangement_table_size);
+    lll_da_ctrl.arrangement_table[0] = 0xff;
+    osmemory_read_arrangement_table(lll_da_ctrl.arrangement_table);
+
+    /* Since OS_Memory 7 doesn't currently work on RISC OS 5, use
+       OS_Memory 0 to generate the table.  Unfortunately, it's a bit
+       guessy, and we can't tell different page types apart */
+    if (lll_da_ctrl.arrangement_table[0] == 0xff) {
+      size_t entry;
+
+      /* There are two pages per byte in the table, so twice as many
+         pages as the size */
+      for (entry = 0; entry < arrangement_table_size * 2; entry++)
+      {
+        os_page_block page;
+
+        page.page_no = entry;
+
+        if (!xosmemory_page_op(osmemory_GIVEN_PAGE_NO, &page, 1))
+        {
+          byte *word = lll_da_ctrl.arrangement_table + entry / 2;
+
+          *word |= (((entry % 2) == 0) ? 0x01 : 0x10);
+        }
+      }
+    }
+
+    osmemory_read_size(osmemory_TYPE_DRAM << osmemory_TYPE_SHIFT,
+                       (int *)&lll_pages,
+                       (int *)&page_size);
+
+    assert(page_size == PAGE_SIZE);
+    assert(lll_pages != 0);
+
+    osmemory_read_size(osmemory_TYPE_VRAM << osmemory_TYPE_SHIFT,
+                       (int *)&lll_rpc_vram_pages,
+                       (int *)&page_size);
+
+    assert(page_size == PAGE_SIZE);
+
+    lll_da_ctrl.page_to_physical = lll_xmalloc((lll_pages + 2) * 4);
+
+    for (entry = 0; entry < arrangement_table_size && page <= lll_pages; entry++)
+    {
+      if ((lll_da_ctrl.arrangement_table[entry] & 0x07) == 0x01) {
+        lll_da_ctrl.page_to_physical[page++] = entry * 2 * PAGE_SIZE;
+//        printf("memory page: %x\n", entry * 2 * PAGE_SIZE);
+      }
+
+      if ((lll_da_ctrl.arrangement_table[entry] & 0x70) == 0x10) {
+        lll_da_ctrl.page_to_physical[page++] = (entry * 2 + 1) * PAGE_SIZE;
+//        printf("memory page: %x\n", (entry * 2 + 1) * PAGE_SIZE);
+      }
+    }
+
+    assert(page >= lll_pages);
+
+    {
+      int bank, mbank, entry = 0;
+
+      for (bank = 0; bank < NUM_BANKS; bank++) {
+        mbank = bank;
+
+        if (lll_memory_bank[mbank].offset) {
+          entry += lll_memory_bank[mbank].size = find_ram(entry, 0x8000, lll_memory_bank[mbank].offset);
+        }
+      }
+
+#if 0
+      /* Kinetic Memory */
+      if (lll_memory_bank[0].size) {
+        lll_phys_memory = PHYS_MEM_KINETIC;
+      }
+#endif
+   }
 }

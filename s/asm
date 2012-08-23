@@ -16,7 +16,7 @@
 ; along with this program; if not, write to the Free Software
 ; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-;	$Id: asm.s,v 1.7 1999/07/20 15:00:29 uid1 Exp $
+;	$Id: asm.s,v 1.4 2004/03/21 18:53:41 pnaulls Exp $
 
 OS_EnterOS	*	&16
 XOS_Memory	*	&20068
@@ -34,15 +34,26 @@ c1	CN	1
 	AREA	ASM, CODE, READONLY
 
 	EXPORT	lll_mmu_off
+
+        ; r0 = Physical address of fixup code
+        ; r1 = Archictecture ID
+        ; r2 = ZRELADDR
+        ; r3 = Page size
+
 lll_mmu_off
 	swi	OS_EnterOS
 	mrs	v1, CPSR
 	bic	v1, v1, #&DF
 	orr	v1, v1, #&D3
-	msr	CPSR_all, v1		; Enter SVC32 mode and disable IRQs
+	msr	CPSR_cf, v1		; Enter SVC32 mode and disable IRQs
 	mov	v1, #&30
 	mcr	p15, 0, v1, c1, c0	; Turn off MMU
+
 	mov	pc, a1			; Only 2 more insns in pipeline
+
+; ---------------------
+
+
 
 reserve			RN	6
 fixup			RN	7
@@ -51,71 +62,69 @@ arrangement_table	RN	9
 page			RN	10
 wkspace			RN	12
 
-	MACRO
-$L	AVAIL	$A
-$L	ldr	r0, [page, $A, LSL #2]
-	movs	r5, r0, LSR #13 ; log2(PAGE_SIZE) + 1
-	ldrb	r5, [arrangement_table, r5]
-	movcs	r5, r5, LSR #4
-	tst	r5, #8
-	MEND
+
+; Iyonix memory handler.
+;
+; This is called post-resize, and records the physical pages actually
+; used by a dyanmic area.  This method could be used by all systems in future.
+
 
 da_handler_main
 	stmfd	r13!, {r1-r11, r14}
-	teq	r2, #0
-	beq	abort
-	add	r11, r1, #8
+	cmp	r2, #0
+	beq	exit
+
+        ldmia   r13, {r4, r5}    ; Page block, Number of Entries
+
+                                 ; Load from the C structure
 	ldmia	wkspace, {reserve, fixup, target, arrangement_table, page}
-	mov	r0, #7
-	mov	r1, arrangement_table
-	swi	XOS_Memory
-	ldmvsfd	r13!, {r1-r11, r14}
-	bvs	eret
-loop	AVAIL	target
-	blne	dfixup
-	add	target, target, #1
-	str	r0, [r11], #12
-	subs	r2, r2, #1
-	bne	loop
+
+        stmfd   r13!, {r0-r2}    ; 3 words on stack
+fill
+        cmp     r5, #0
+        beq     done
+
+        ; Simply increment per page table entry
+        ldr     r3, [r4], #12
+        sub     r5, r5, #1
+
+        ; Convert allocated page number to physical address
+        str     r3, [r13, #0]
+        mov     r0, #&2100 ;  OS_Memory 0 - page number provided, phys returned
+        mov     r1, r13
+        mov     r2, #1
+        swi     XOS_Memory
+
+        ; Put entry in the fixup table.
+        ldr     r0, [r13, #8]
+
+        stmia   fixup!, {r0, reserve}
+        add     reserve, reserve, #PAGE_SIZE
+
+        b       fill
+
+done
+        add     r13, r13, #12                     ; Restore stack
 	stmia	wkspace, {reserve, fixup, target}
-	ldmfd	r13, {r1, r2}
-	mov	r0, #&1C00
-	swi	XOS_Memory
+exit
 	ldmfd	r13!, {r1-r11, r14}
-	movvc	r0, #0
-	bicvc	r14, r14, #V
-	orrvs	r14, r14, #V
-	msr	CPSR_flg, r14
-	mov	pc, r14
-
-dfixup	mov	r1, r0
-floop	subs	reserve, reserve, #1
-	bcc	abort
-	AVAIL	reserve
-	bne	floop
-	stmia	fixup!, {r0, r1}
-	mov	r1, r0
-	mov	r0, fixup
-	mov	r0, r1
-	mov	pc, r14
-
-abort	ldmfd	r13!, {r1-r11, r14}
 	mov	r0, #0
-eret	orr	r14, r14, #V
-	msr	CPSR_flg, r14
+	msr	CPSR_f, #0
 	mov	pc, r14
+
 
 	EXPORT	lll_da_handler_start
 	EXPORT	lll_da_handler_end
 
 	LTORG
 lll_da_handler_start
-	teq	r0, #0
+	cmp	r0, #1
 	ldreq	pc, =da_handler_main
-	bic	r14, r14, #V
-	msr	CPSR_flg, r14
+	msr	CPSR_f, #0
 	mov	pc, r14
 	LTORG
 lll_da_handler_end
 
 	END
+
+

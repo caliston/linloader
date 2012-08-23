@@ -1,32 +1,35 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: bootfile.c,v 1.3 1999/08/11 18:21:58 uid1 Exp $ */
+/* $Id: bootfile.c,v 1.4 2003/07/11 17:37:00 pnaulls Exp $ */
 
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
+#include <swis.h>
+
 #include "kernel.h"
 
-#include "osfind.h"
-#include "osargs.h"
-#include "osgbpb.h"
+#include "oslib/osfind.h"
+#include "oslib/osargs.h"
+#include "oslib/osgbpb.h"
 
 #include "internal.h"
 
@@ -36,8 +39,21 @@
 #define ZLIB_INCLUDE "zlib.h"
 #endif
 #include ZLIB_INCLUDE
+
 #define lll_boot lll_boot_gzip
+
+#ifndef __GNUC__
 __swi (OS_BGet) unsigned char lll_bget(int x, os_f handle);
+
+#else
+
+unsigned char lll_bget(int x, os_f handle) {
+  _swi(OS_BGet, _IN(1) | _OUT(0), handle, &x);
+  return x;
+}
+
+#endif
+
 #define bget(h) lll_bget(0, h)
 #define len(x) strlen((char const *)(x))
 #else
@@ -47,84 +63,88 @@ __swi (OS_BGet) unsigned char lll_bget(int x, os_f handle);
 static os_f initrd, kernel;
 
 static void close_files(void) {
-  if (initrd) {
-    osfind_close(initrd);
-    initrd = 0;
-  }
-  if (kernel) {
-    osfind_close(kernel);
-    kernel = 0;
-  }
+    if (initrd) {
+	osfind_close(initrd);
+	initrd = 0;
+    }
+    if (kernel) {
+	osfind_close(kernel);
+	kernel = 0;
+    }
 }
 
 void lll_boot(char const *kernel_file, char const *initrd_file, char const *commandline, osfind_flags flags, char const *path) {
 #ifdef BOOT_GZIP
-  size_t kernel_file_size, header_size;
-  byte *kernel_buffer;
-  int gzipped = 0;
+    size_t kernel_file_size, header_size = 0;
+    byte *kernel_buffer = NULL;
+    int gzipped = 0;
 #endif
-  static int registered = 0;
-  if (!registered) {
-    atexit(close_files);
-    registered = 1;
-  }
-  if (!path) path = "";
-  if (initrd_file) {
-     initrd = osfind_openin(flags, initrd_file, path);
-     lll_initrd_size = osargs_read_ext(initrd);
-  }
-  kernel = osfind_openin(flags, kernel_file, path);
-  kernel_file_size = osargs_read_ext(kernel);
-#ifdef BOOT_GZIP
-  if (bget(kernel) == 0x1F && bget(kernel) == 0x8B) {
-    byte flags;
-    gzipped = 1;
-    kernel_buffer = lll_xmalloc(kernel_file_size);
-    osgbpb_read_at(kernel, kernel_buffer, kernel_file_size, 0);
-    lll_kernel_size = kernel_buffer[kernel_file_size - 4];
-    lll_kernel_size |= kernel_buffer[kernel_file_size - 3] << 8;
-    lll_kernel_size |= kernel_buffer[kernel_file_size - 2] << 16;
-    lll_kernel_size |= kernel_buffer[kernel_file_size - 1] << 24;
-    flags = kernel_buffer[3];
-    header_size = 10;
-    if (flags & 0x4) {
-      header_size += kernel_buffer[10] + 2;
-      header_size += kernel_buffer[11] << 8;
+    static int registered = 0;
+    if (!registered) {
+	atexit(close_files);
+	registered = 1;
     }
-    if (flags & 0x8) header_size += len(kernel_buffer + header_size) + 1;
-    if (flags & 0x10) header_size += len(kernel_buffer + header_size) + 1;
-    if (flags & 0x2) header_size += 2;
-  } else lll_kernel_size = kernel_file_size;
-#endif
-  lll_init();
-#ifdef BOOT_GZIP
-  if (gzipped) {
-    z_stream s;
-    unsigned crc;
-    memset(&s, 0, sizeof(s));
-    s.zalloc = Z_NULL;
-    s.zfree = Z_NULL;
-    s.opaque = Z_NULL;
-    s.next_in = kernel_buffer + header_size;
-    s.avail_in = kernel_file_size - header_size - 8;
-    s.next_out = lll_kernel;
-    s.avail_out = lll_kernel_size;
-    assert(inflateInit2(&s, -MAX_WBITS) == Z_OK);
-    assert(inflate(&s, Z_FINISH) == Z_STREAM_END);
-    assert(inflateEnd(&s) == Z_OK);
-    crc = kernel_buffer[kernel_file_size - 8];
-    crc |= kernel_buffer[kernel_file_size - 7] << 8;
-    crc |= kernel_buffer[kernel_file_size - 6] << 16;
-    crc |= kernel_buffer[kernel_file_size - 5] << 24;
-    if (crc != crc32(crc32(0L, Z_NULL, 0), lll_kernel, lll_kernel_size)) {
-      _kernel_osrdch();
-      lll_die("\0\0\0\0lll_crcerror");
+    if (!path) path = "";
+    if (initrd_file) {
+	initrd = osfind_openin(flags, initrd_file, path);
+	lll_initrd_size = osargs_read_ext(initrd);
     }
-  } else
+    kernel = osfind_openin(flags, kernel_file, path);
+    kernel_file_size = osargs_read_ext(kernel);
+#ifdef BOOT_GZIP
+    if (bget(kernel) == 0x1F && bget(kernel) == 0x8B) {
+	byte flags;
+	gzipped = 1;
+	kernel_buffer = lll_xmalloc(kernel_file_size);
+	osgbpb_read_at(kernel, kernel_buffer, kernel_file_size, 0);
+	lll_kernel_size = kernel_buffer[kernel_file_size - 4];
+	lll_kernel_size |= kernel_buffer[kernel_file_size - 3] << 8;
+	lll_kernel_size |= kernel_buffer[kernel_file_size - 2] << 16;
+	lll_kernel_size |= kernel_buffer[kernel_file_size - 1] << 24;
+	flags = kernel_buffer[3];
+	header_size = 10;
+	if (flags & 0x4) {
+	    header_size += kernel_buffer[10] + 2;
+	    header_size += kernel_buffer[11] << 8;
+	}
+	if (flags & 0x8) header_size += len(kernel_buffer + header_size) + 1;
+	if (flags & 0x10) header_size += len(kernel_buffer + header_size) + 1;
+	if (flags & 0x2) header_size += 2;
+    }
+    else
+	lll_kernel_size = kernel_file_size;
 #endif
-    osgbpb_read_at(kernel, lll_kernel, lll_kernel_size, 0);
-  if (initrd) osgbpb_read_at(initrd, lll_initrd, lll_initrd_size, 0);
-  close_files();
-  lll_setup_params(commandline);
-  lll_start_linux();
+    lll_init();
+#ifdef BOOT_GZIP
+    if (gzipped) {
+	z_stream s;
+	unsigned crc;
+	memset(&s, 0, sizeof(s));
+	s.zalloc = Z_NULL;
+	s.zfree = Z_NULL;
+	s.opaque = Z_NULL;
+	s.next_in = kernel_buffer + header_size;
+	s.avail_in = kernel_file_size - header_size - 8;
+	s.next_out = lll_kernel;
+	s.avail_out = lll_kernel_size;
+	assert(inflateInit2(&s, -MAX_WBITS) == Z_OK);
+	assert(inflate(&s, Z_FINISH) == Z_STREAM_END);
+	assert(inflateEnd(&s) == Z_OK);
+	crc = kernel_buffer[kernel_file_size - 8];
+	crc |= kernel_buffer[kernel_file_size - 7] << 8;
+	crc |= kernel_buffer[kernel_file_size - 6] << 16;
+	crc |= kernel_buffer[kernel_file_size - 5] << 24;
+	if (crc != crc32(crc32(0L, Z_NULL, 0), lll_kernel, lll_kernel_size)) {
+	    _kernel_osrdch();
+	    lll_die("\0\0\0\0lll_crcerror");
+	}
+    } else
+#endif
+	osgbpb_read_at(kernel, lll_kernel, lll_kernel_size, 0);
+    if (initrd) osgbpb_read_at(initrd, lll_initrd, lll_initrd_size, 0);
+
+    close_files();
+    lll_setup_params(commandline);
+
+    lll_start_linux();
 }

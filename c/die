@@ -1,3 +1,5 @@
+/* $Id: die.c,v 1.1.1.1 2003/02/28 17:25:28 kyllikki Exp $ */
+
 #include "internal.h"
 
 void lll_die(char const *s) {

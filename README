@@ -1,11 +1,30 @@
-Linloader 0.35 (Source Distribution)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Linloader 0.40
+~~~~~~~~~~~~~~
+
 Linloader is RISC OS command line program for booting Linux on Acorn
-RiscPCs (and hopefully later RISC OS systems), it does not provide a boot
-menu, or shut down the desktop. Linloader is released under the GNU GPL,
+RiscPCs, RiscStations, Bush STBs and Castle's Iyonix. It does not provide a
+boot menu, or shut down the desktop. Linloader is released under the GNU GPL,
 see the file Docs.GPL/txt and is © Timothy Baldwin and others.
 
 Full documentation can be found in the Docs directory.
+
+These sources have been modified to use a modern OSLib distribution
+They require a Norcroft linked zlib, source for which can be obtained
+from: http://www.kyllikki.org
+
+This is broken for Bush STB in that they assume an 8MB memory SIMM and
+pass values to ARM Linux accordingly.
+
+
+Versions
+~~~~~~~~
+
+Linloader is now maintained by Vincent Sanders, taking the original
+0.35 version and updating it for RiscStation support, as well
+as improving comments.
+
+Peter Naulls added support for Castle's Iyonix, and cleaned the
+code up, and added more comments.
 
 
 Disclaimer
@@ -17,5 +36,12 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 Availability
 ~~~~~~~~~~~~
-Linloader can be downloaded from :
+The latest version is available from netwinder.org CVS for those with
+access.
+
+The original Linloader can be downloaded from :
  http://www.reinhouse.freeserve.co.uk/riscos/linloader/
+
+A later modified version is available from
+ http://www.kyllikki.org/software/ro-ports/releases/
+

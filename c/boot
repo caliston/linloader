@@ -1,40 +1,46 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: boot.c,v 1.8 1999/08/11 20:18:24 uid1 Exp $ */
+/* $Id: boot.c,v 1.4 2004/01/20 17:39:15 pnaulls Exp $ */
 
 
-#include "osfscontrol.h"
-#include "podule.h"
+#include "oslib/osfscontrol.h"
+#include "oslib/podule.h"
 
 #include "internal.h"
 
-extern void lll_mmu_off(unsigned fixup, unsigned archid, unsigned kernel, int page_size);
+#include <stdio.h>
 
-unsigned lll_fixup_physical_addr;
+
+unsigned int lll_fixup_physical_addr;
 
 void lll_start_linux(void) {
-  if (lll_noboot) return;
-  xos_cli("%rc5pc off");
-  osfscontrol_shutdown();
-  os_remove_cursors();
-  os_cli("%cache off");
-  service_pre_reset(); /* Reset hardware */
-  lll_mmu_off(lll_fixup_physical_addr, lll_sys_to_linux[lll_sys_id], 0x10008000, PAGE_SIZE);
+    if (lll_noboot) return;
+    xos_cli("%rc5pc off");
+    osfscontrol_shutdown();
+    os_remove_cursors();
+    os_cli("%cache off");
+    /* This causes problems with ViewFinder and Select.  So we don't
+       call it any more. */
+    if (lll_sys_id != lll_id_riscpc)
+      service_pre_reset();  /* Reset hardware */
+
+    lll_mmu_off(lll_fixup_physical_addr, lll_sys_to_linux[lll_sys_id],
+                lll_phys_memory + 0x8000, PAGE_SIZE);
 }

@@ -1,23 +1,23 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: init.c,v 1.4 1999/08/11 18:22:14 uid1 Exp $ */
+/* $Id: init.c,v 1.8 2004/03/21 18:56:05 pnaulls Exp $ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -25,11 +25,13 @@
 #include <stdio.h>
 #include "kernel.h"
 
-#include "os.h"
-#include "osmodule.h"
-#include "taskwindow.h"
+#include "oslib/os.h"
+#include "oslib/osmodule.h"
+#include "oslib/taskwindow.h"
 
 #include "internal.h"
+
+#include "msgs.h"
 
 os_dynamic_area_no lll_dynamic_area;
 static byte *da_handler;
@@ -37,63 +39,206 @@ size_t lll_initrd_size, lll_kernel_size;
 byte *lll_initrd, *lll_kernel, *lll_params;
 int lll_noboot;
 unsigned lll_initrd_page;
+unsigned int lll_tag_list;
 
-void lll_free_mem(void) {
-  if (lll_dynamic_area) {
-    osdynamicarea_delete(lll_dynamic_area);
-    lll_dynamic_area = 0;
-  }
-  if (da_handler) {
-    osmodule_free(da_handler);
-    da_handler = 0;
-  }
+void lll_free_mem(void)
+{
+    if (lll_dynamic_area) {
+	osdynamicarea_delete(lll_dynamic_area);
+	lll_dynamic_area = 0;
+    }
+    if (da_handler) {
+	osmodule_free(da_handler);
+	da_handler = 0;
+    }
 }
 
-void lll_init(void) {
-  extern byte lll_da_handler_end, lll_da_handler_start, lll_fixup_code_start, lll_fixup_code_end;
-  unsigned i, fixup_pages;
-  os_page_block *pages;
-  size_t fixup_table_size, fixup_size, fixup_code_size, da_handler_size, initrd_size_page_aligned, da_size;
-  byte *fixup_table, *fixup;
-  lll_load_msgs();
-  if (!lll_noboot && taskwindowtaskinfo_window_task()) lll_die("\0\0\0\0lll_NoTaskW");
-  lll_id_sys();
-  if (lll_sys_id == 1 || lll_sys_id == 2) lll_die("\0\0\0\0lll_Arc");
-  if (lll_sys_to_linux[lll_sys_id] == -1) lll_die("\0\0\0\0lll_uksys");
-  atexit(lll_free_mem);
 
-  da_handler_size = &lll_da_handler_end - &lll_da_handler_start;
-  da_handler = osmodule_alloc(da_handler_size);
-  memcpy(da_handler, &lll_da_handler_start, da_handler_size);
-  xos_synchronise_code_areas(1, da_handler, da_handler + da_handler_size);
-  fixup_table = lll_xmalloc(FIXUP_SIZE);
-  lll_da_ctrl.fixup = fixup_table;
-  memset(fixup_table, 0, FIXUP_SIZE);
+#if 0
+/* This is test code to replace the assembler */
+static void lll_store_pages(void *da_address, unsigned int size) {
+  unsigned int address = (unsigned int)da_address;
+  unsigned int end = address + size;
+  os_page_block page;
 
-  initrd_size_page_aligned = (lll_initrd_size + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
-  lll_initrd_page = lll_da_ctrl.reserve = lll_da_ctrl.target = lll_pages - (initrd_size_page_aligned / PAGE_SIZE);
-  da_size = initrd_size_page_aligned + PARAM_SIZE + lll_kernel_size;
-  lll_dynamic_area = osdynamicarea_create(osdynamicarea_ALLOCATE_AREA, initrd_size_page_aligned, osdynamicarea_ALLOCATE_BASE, 0x180, da_size + da_size / PAGE_SIZE * 8 + PAGE_SIZE * 2, da_handler, &lll_da_ctrl, "Linloader", &lll_initrd, 0);
-  lll_da_ctrl.target = 0;
-  lll_params = lll_initrd + initrd_size_page_aligned;
-  lll_kernel = lll_params + PARAM_SIZE;
-  fixup = os_change_dynamic_area(lll_dynamic_area, PARAM_SIZE + lll_kernel_size) + lll_initrd + initrd_size_page_aligned;
-  memset(lll_kernel + lll_kernel_size, 0, fixup - (lll_kernel + lll_kernel_size));
-  memset(lll_initrd + lll_initrd_size, 0, lll_kernel - (lll_initrd + lll_initrd_size));
+  while (address < end) {
+    page.log_addr = (void *)address;
+    osmemory_page_op(osmemory_GIVEN_LOG_ADDR | osmemory_RETURN_PHYS_ADDR, &page, 1);
 
-  fixup_table_size = lll_da_ctrl.fixup - fixup_table;
-  fixup_size = os_change_dynamic_area(lll_dynamic_area, fixup_table_size + 8 + PAGE_SIZE);
-  memset(fixup, 0, fixup_size);
-  fixup_code_size = &lll_fixup_code_end - &lll_fixup_code_start;
-  memcpy(fixup, &lll_fixup_code_start, fixup_code_size);
-  memcpy(fixup + PAGE_SIZE, fixup_table, fixup_table_size);
-  fixup_pages = fixup_size / PAGE_SIZE;
-  pages = lll_xmalloc(fixup_pages * sizeof(os_page_block));
-  for(i = 0; i < fixup_pages; i++)
-    pages[i].log_addr = fixup + i * PAGE_SIZE;
-  osmemory_page_op(osmemory_GIVEN_LOG_ADDR | osmemory_RETURN_PHYS_ADDR, pages, fixup_pages);
-  for(i = 1; i < fixup_pages; i++)
-    ((byte **)(fixup + fixup_code_size))[i - 1] = pages[i].phys_addr;
-  lll_fixup_physical_addr = (unsigned)pages[0].phys_addr;
-  free(pages);
+    lll_da_ctrl.fixup->from = (unsigned int)page.phys_addr;
+    lll_da_ctrl.fixup->to   = lll_da_ctrl.reserve;
+
+    lll_da_ctrl.reserve += PAGE_SIZE;
+    address             += PAGE_SIZE;
+  }
+}
+#endif
+
+
+void lll_init(void)
+{
+    extern byte lll_da_handler_start,
+                lll_da_handler_end,
+                lll_fixup_code_start,
+                lll_fixup_code_end;
+    unsigned int fixup_page, fixup_pages;
+    os_page_block *pages;
+    size_t fixup_table_size, fixup_size, fixup_code_size,
+           da_handler_size, initrd_size_page_aligned, da_size;
+    struct lll_fixup_table *fixup_table;
+    byte *fixup;
+    osbool window_task = FALSE;
+
+    /* Load messages */
+    loadmsgs();
+
+    /* Ensure we're not in a taskwindow */
+    xtaskwindowtaskinfo_window_task(&window_task);
+    if (!lll_noboot && window_task)
+	lll_die("\0\0\0\0lll_NoTaskW");
+
+    /* Identify system and fill in memory info */
+    lll_id_sys();
+
+    if (lll_debug)
+    {
+	printf(	"lll_sys_name = %s\nlll_sys_id = %i\nlll_rpc_vram_pages = %i\nlll_pages = %i\nlll_rpc_bank[] = {%i, %i, %i, %i}\n",
+		lll_sys_name,
+		lll_sys_id,
+
+		lll_rpc_vram_pages,
+		lll_pages,
+		lll_memory_bank[NUM_BANKS - 4].size,
+		lll_memory_bank[NUM_BANKS - 3].size,
+		lll_memory_bank[NUM_BANKS - 2].size,
+		lll_memory_bank[NUM_BANKS - 1].size);
+    }
+
+    /* ID = 2 isn't set anywhere */
+    if (lll_sys_id == lll_id_archimedes || lll_sys_id == 2)
+	lll_die("\0\0\0\0lll_Arc");
+
+    if (lll_sys_to_linux[lll_sys_id] == -1)
+	lll_die("\0\0\0\0lll_uksys");
+
+    atexit(lll_free_mem);
+
+    da_handler_size = &lll_da_handler_end -
+                      &lll_da_handler_start;
+
+    da_handler = osmodule_alloc(da_handler_size);
+
+    memcpy(da_handler, &lll_da_handler_start, da_handler_size);
+
+    xos_synchronise_code_areas(1,
+                               da_handler,
+                               da_handler + da_handler_size);
+
+    fixup_table = lll_xmalloc(FIXUP_SIZE);
+
+    lll_da_ctrl.fixup = fixup_table;
+
+    memset(fixup_table, 0, FIXUP_SIZE);
+
+    initrd_size_page_aligned =
+         (lll_initrd_size + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
+
+    if (lll_sys_id == lll_id_riscstation) {
+      /* Place initrd 16MB into Physical RAM */
+      lll_initrd_page = lll_da_ctrl.reserve = lll_da_ctrl.target = 1024;
+    } else {
+      /* Place initrd into the top of RAM */
+      lll_initrd_page = lll_pages - (initrd_size_page_aligned / PAGE_SIZE);
+      lll_da_ctrl.reserve = lll_da_ctrl.target = lll_da_ctrl.page_to_physical[lll_initrd_page];
+                        
+   }
+
+    if (lll_debug)
+    {
+       printf("initrd_size_page_aligned %d\n", initrd_size_page_aligned);
+       printf(" lll_pages %d\n", lll_pages);
+       printf(" lll_initrd_page %d\n", lll_initrd_page);
+    }
+
+
+    da_size = initrd_size_page_aligned + PARAM_SIZE + lll_kernel_size;
+
+    /* Create a DA big enough for initrd */
+    lll_dynamic_area = osdynamicarea_create(osdynamicarea_ALLOCATE_AREA,
+					    initrd_size_page_aligned,
+					    osdynamicarea_ALLOCATE_BASE,
+					    0x180,
+					    da_size + da_size / PAGE_SIZE * 8 + PAGE_SIZE * 2,
+					    da_handler,
+					    &lll_da_ctrl,
+					    "Linloader",
+					    &lll_initrd,
+					    0);
+
+
+    lll_da_ctrl.target = 0;
+    /* Point to kernel parameter location */
+    lll_params = lll_initrd + initrd_size_page_aligned;
+    /* Point to kernel itself */
+    lll_kernel = lll_params + PARAM_SIZE;
+
+    lll_da_ctrl.reserve = lll_phys_memory;
+
+    /* Add to DA to be big enough for params and kernel */
+    /* When the preresize handler is called, we note the physical pages used */
+    fixup = os_change_dynamic_area(lll_dynamic_area,
+         PARAM_SIZE + lll_kernel_size) + lll_initrd + initrd_size_page_aligned;
+
+    /* Set kernel location to zero */
+    memset(lll_kernel + lll_kernel_size,
+	   0,
+	   fixup - (lll_kernel + lll_kernel_size));
+
+    /* Set initrd to zero */
+    memset(lll_initrd + lll_initrd_size,
+	   0,
+	   lll_kernel - (lll_initrd + lll_initrd_size));
+
+    /* Amount fixup table has grown by when DA was resized */
+    fixup_table_size = (byte *)lll_da_ctrl.fixup - (byte *)fixup_table;
+
+    /* Add to do DA to take fixup table + fixup code */
+    fixup_size = os_change_dynamic_area(lll_dynamic_area,
+					fixup_table_size + 8 + PAGE_SIZE);
+
+    /* Clear DA */
+    memset(fixup, 0, fixup_size);
+
+    /* Size of fixup code */
+    fixup_code_size = &lll_fixup_code_end - &lll_fixup_code_start;
+
+    /* Copy code to beginning of earlier allocated physical pages */
+    memcpy(fixup, &lll_fixup_code_start, fixup_code_size);
+
+    /* Copy fixup table to just after that */
+    memcpy(fixup + PAGE_SIZE, fixup_table, fixup_table_size);
+
+    /* Number of pages in fixup table */
+    fixup_pages = fixup_size / PAGE_SIZE;
+
+    /* Allocate enough blocks to allow memory translation of fixup pages */
+    pages = lll_xmalloc(fixup_pages * sizeof(os_page_block));
+
+    for (fixup_page = 0; fixup_page < fixup_pages; fixup_page++)
+      pages[fixup_page].log_addr = fixup + fixup_page * PAGE_SIZE;
+
+    /* Translate the fixup page address to physical */
+    osmemory_page_op(osmemory_GIVEN_LOG_ADDR | osmemory_RETURN_PHYS_ADDR,
+		     pages,
+		     fixup_pages);
+
+    /* Store the values after the fixup code */
+    for (fixup_page = 1; fixup_page < fixup_pages; fixup_page++) {
+      ((byte **)(fixup + fixup_code_size))[fixup_page - 1] = pages[fixup_page].phys_addr;
+    }
+
+    /* Physical address to jump to after turning MMU off */
+    lll_fixup_physical_addr = (unsigned)pages[0].phys_addr;
+
+    free(pages);
 }

@@ -1,0 +1,8 @@
+Prefix <Obey$Dir>
+
+echo Making linloader
+echo
+
+cdir o
+
+amu -f Makefile

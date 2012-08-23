@@ -1,58 +1,126 @@
-<html><head><title>Linloader 0.35 instructions</title></head><body>
-<!-- $Id: manual.html,faf,v 1.5 1999/08/11 20:29:12 uid1 Exp $ -->
-<h1>Linloader 0.35</h1>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+ <head>
+  <title>Linloader 0.40 instructions</title>
+ </head>
+
+<body>
+
+<h1>Linloader 0.40</h1>
+
 <h2>Introduction</h2>
+
 <p>Linloader is RISC OS command line program for booting Linux on Acorn
-RiscPCs (and hopefully later RISC OS systems), it does not provide a boot
-menu, or shut down the desktop.
-It does kowever boot gzipped kernels. Linloader is released under the
-<a href="GPL.txt">GNU GPL</a> and is &copy; Timothy Baldwin and <a href="#credits">others.</a></p>
-<p>Note that some links only work in the source distribution.</p>
+RiscPCs, RiscStations, Bush STBs and Castle's Iyonix. It does not provide a boot
+menu, or shut down the desktop. It does however boot gzipped kernels. Linloader is released under the <a href="GPL.txt">GNU GPL</a> and is &copy; Timothy Baldwin and <a href="#credits">others.</a></p>
+
+<p>Linloader is currently maintained by Vincent Sanders and Peter Naulls.  you should <a href="mailto:peter@chocky.org">contact Peter</a> in the first instance about issues with linloader.</p>
+
 <h2>Disclaimer</h2>
+
 <p>Linloader is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-<a href="gpl.html">GNU General Public License</a> for more details.</p>
+<a href="GPL.txt">GNU General Public License</a> for more details.</p>
+
 <h2>Using Linloader</h2>
+
 <h3>Options</h3>
-<table><thead><tr><td>Short Option<td>Long Option<td>Description</thead><tbody>
-<tr><td><var>-k</var><td><var>--kernel</var><td>RISC OS filename of the kernel to be booted, if this option is omitted the first non-option argument is used as the kernel filename.
-<tr><td><var>-i</var><td><var>--initrd</var><td>RISC OS filename of the initial ram disc (initrd) to be loaded, alternatively a initial ram disc may be specified by a argument beginning &quot;<var>initrd=</var>&quot;.
-<tr><td><var>-c</var><td><var>--no-clear</var><td>Do not clear the screen.
-<tr><td><var>-q</var><td><var>--quiet</var><td>Do not display banner.
-<tr><td><var>-e</var><td><var>--extra-arguments</var><td>Prompt for extra kernel arguments before clearing the screen or displaying the banner.
-<tr><td><td><var>--dry-run</var><td>Do a dry run, do not actually boot the kernel, but instead wait for a keypress, then exit. This is intended for testing Linloader.
-<tr><td><var>-h</var><td><var>--help</var><td>Show help text.
-<tr><td><td><var>--credits</var><td>Show <a href="#credits">credits.</a>
+
+<table>
+ <thead><tr><td>Short Option<td>Long Option<td>Description</thead><tbody>
+
+  <tr><td><var>-k</var><td><var>--kernel</var><td>RISC OS filename of the kernel to be booted, if this option is omitted the first non-option argument is used as the kernel filename.
+
+  <tr><td><var>-t</var><td><var>--tag</var><td>Pass a tagged list to the kernel for boot options instead of the old param struct.  This should be used where possible, as the old style is deprecated, and may not boot kernels successfully in some circumstances.
+
+  <tr><td><var>-i</var><td><var>--initrd</var><td>RISC OS filename of the initial ram disc (initrd) to be loaded, alternatively a initial ram disc may be specified by a argument beginning &quot;<var>initrd=</var>&quot;.
+
+  <tr><td><var>-c</var><td><var>--no-clear</var><td>Do not clear the screen.
+
+  <tr><td><var>-q</var><td><var>--quiet</var><td>Do not display banner.
+
+  <tr><td><var>-e</var><td><var>--extra-arguments</var><td>Prompt for extra kernel arguments before clearing the screen or displaying the banner.
+
+  <tr><td><td><var>--dry-run</var><td>Do a dry run, do not actually boot the kernel, but instead wait for a keypress, then exit. This is intended for testing Linloader.
+
+  <tr><td><var>-h</var><td><var>--help</var><td>Show help text.
+  <tr><td><td><var>--credits</var><td>Show <a href="#credits">credits.</a>
 </tbody></table>
+
 <p>Long options may be abbreviated provided they remain unique, though this feature may be removed in future.
 If Linloader is given an option of <var>--</var> then all following arguments are not treated as options,
 this is useful if you want to pass an argument to the kernel which begins with <code>-</code>.</p>
-<h3>Examples</h3><ul>
-<li><kbd>Linloader ADFS::4.$.L.zImage root=/dev/hda3</kbd>
-<li><kbd>Linloader  --kernel=ADFS::4.$.L.zImage -- root=/dev/hda3 -b</kbd>
-<li><kbd>Linloader ADFS::4.$.L.zImage initrd=ADFS::4.$.L.initrd</kbd>
-<li><kbd>Linloader ADFS::4.$.L.zImage --initrd ADFS::4.$.L.initrd</kbd>
-<li><kbd>Linloader -k ADFS::4.$.L.zImage -i ADFS::4.$.L.initrd</kbd></ul>
+
+
+<h3>Examples</h3>
+
+ <ul>
+  <li><kbd>Linloader ADFS::4.$.L.zImage root=/dev/hda3</kbd>
+  <li><kbd>Linloader  --kernel=ADFS::4.$.L.zImage -- root=/dev/hda3 -b</kbd>
+  <li><kbd>Linloader ADFS::4.$.L.zImage initrd=ADFS::4.$.L.initrd</kbd>
+  <li><kbd>Linloader ADFS::4.$.L.zImage --initrd ADFS::4.$.L.initrd</kbd>
+  <li><kbd>Linloader -k ADFS::4.$.L.zImage -i ADFS::4.$.L.initrd</kbd>
+ </ul>
+
 <a name="loadlin"><h3>LOADLIN like options</h3>
+
 <p>By prefixing the arguments with <var>--</var> Linloader can be made to accept options like those of <cite>LOADLIN</cite>.</p></a>
 <h2>Building Linloader</h2>
-<p>Currently to build Linloader you need <a href="http://www.cdrom.com/pub/infozip/zlib/">zlib</a>, <a href="http://www.arcade.demon.co.uk/oslib/homepage.html">OSLib</a> and Acorn C/C++.
-Alternatively it should be possible to use <a href="http://www.youmustbejoking.demon.co.uk/">AS 1.30 2nd March 1999</a> or later with another C complier, after making appropriate modifications to the Makefile.</p>
-<a name="credits"><h2>Credits</h2><ul>
-<li>Matthias Seifert for the <a href="source/message.html">memory controller identification code</a> which Linloader <a href="../s/mcid">uses.</a>
-<li><a href="mailto:linux@arm.linux.org.uk">Russell King</a> for the <a href="http://www.arm.linux.org.uk/">ARM Port</a> of <a href="http:/www.linux.org/">Linux,</a> especially the header file <a href="../h/setup"><cite>asm-arm/setup.h</cite></a> which is used by Linloader.
-<li>The <a href="http://www.gnu.org/">Free Software Foundation</a> for <a href="source/getopt.html">GNU getopt.</a>
-<li>OSLib developers for <a href="http://www.arcade.demon.co.uk/oslib/homepage.html">OSLib.</a>
-<li>John Tygat for the RISC OS port of <a href="http://www.cyclic.com/">CVS.</a>
-<li>And it would not be a complete list without Acorn, for Acorn C/C++, however they are not really deserving of a mention.
-</ul></a>
-<h2>Contacts</h2>
-<p>I (Timothy Baldwin) can be contacted at <a href="mailto:tim@reinhouse.freeserve.co.uk">tim@reinhouse.freeserve.co.uk</a>, Linloader can be downloaded from <a href="http://www.reinhouse.freeserve.co.uk/riscos/linloader/">http://www.reinhouse.freeserve.co.uk/riscos/linloader/</a>
-<h2>Changes since version 0.20</h2><ul>
-<li>The second L in the name is now lower-case.
-<li>After major internal arrangements Linloader can now be used as a library,
+
+<p>Currently to build Linloader you need <a href="http://www.cdrom.com/pub/infozip/zlib/">zlib</a>, <a href="http://www.arcade.demon.co.uk/oslib/homepage.html">OSLib</a> and Acorn/Castle C/C++.
+</p>
+
+<p>linloader can also be built with GCC targetting the SharedCLibrary,
+and this is now the default build option.</p>
+
+<h2><a name="credits">Credits</a></h2>
+
+<ul>
+ <li>Matthias Seifert for the <a href="source/message.html">memory controller identification code</a> which Linloader <a href="../s/mcid">uses.</a>
+
+ <li><a href="mailto:linux@arm.linux.org.uk">Russell King</a> for the <a href="http://www.arm.linux.org.uk/">ARM Port</a> of <a href="http:/www.linux.org/">Linux,</a> especially the header file <a href="../h/setup"><cite>asm-arm/setup.h</cite></a> which is used by Linloader.
+
+ <li>The <a href="http://www.gnu.org/">Free Software Foundation</a> for <a href="source/getopt.html">GNU getopt.</a>
+
+ <li>OSLib developers for <a href="http://www.arcade.demon.co.uk/oslib/homepage.html">OSLib.</a>
+
+ <li>John Tygat for the RISC OS port of <a href="http://www.cyclic.com/">CVS.</a>
+
+ <li>And it would not be a complete list without Acorn, for Acorn C/C++, however they are not really deserving of a mention.
+</ul>
+
+<h2>Changes</h2>
+
+<h3>Changes since version 0.36</h3>
+
+<ul>
+ <li>Substantial rewrite, comment additions and tidying of code
+ <li>Iyonix Support
+ <li>Preliminary Kinetic support
+ <li>(Compile time) arbitary number of memory banks
+ <li>Tagged list support
+ <li>Select support
+ <li>Better handling of location/handling of initrd and physical
+     versus logical addresses.
+ <li>Ability to compile with GCC   
+</ul>
+
+<h3>Changes since version 0.35</h3>
+
+<ul>
+ <li>RiscStation support and other minor platforms
+</ul>
+
+<h3>Changes since version 0.20</h3>
+
+<ul>
+ <li>The second L in the name is now lower-case.
+ <li>After major internal arrangements Linloader can now be used as a library,
 though the interface is neither documented or stable.
-<li>Can now boot gzipped kernels.
-<li>AS is no longer required to build Linloader.
-</body></html>
+ <li>Can now boot gzipped kernels.
+ <li>AS is no longer required to build Linloader.
+</ul>
+
+</body>
+</html>

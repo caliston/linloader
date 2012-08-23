@@ -1,28 +1,29 @@
 /*
- Linloader, Boots Linux/ARM on RISC OS based systems.
- Copyright (C) 1999  Timothy Baldwin
+  Linloader, Boots Linux/ARM on RISC OS based systems.
+  Copyright (C) 1999  Timothy Baldwin
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: params.c,v 1.4 1999/08/11 20:18:53 uid1 Exp $ */
+/* $Id: params.c,v 1.4 2004/03/21 18:56:05 pnaulls Exp $ */
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
-#include "osbyte.h"
+#include "oslib/osbyte.h"
 
 #include "internal.h"
 
@@ -32,36 +33,89 @@
 
 #define p (*((struct param_struct *)(lll_params + 0x100)))
 
+static struct tag *lll_add_tag(struct tag *tag, unsigned int type, unsigned int size) {
+
+  /* Next tag */
+  tag = (struct tag *)((unsigned char *)tag + tag->hdr.size * 4);
+  memset(tag, 0, size * 4);
+  tag->hdr.size = size;
+  tag->hdr.tag  = type;
+
+  return tag;
+}
+
+
 void lll_setup_params(char const *commandline) {
-  static const os_VDU_VAR_LIST(4) vars = {{
-      os_MODEVAR_LOG2_BPP,
-      os_MODEVAR_XWIND_LIMIT,
-      os_MODEVAR_YWIND_LIMIT,
-      -1
-  }};
-  int values[4];
 
-  p.u1.s.pages_in_bank[0] = lll_rpc_bank[0];
-  p.u1.s.pages_in_bank[1] = lll_rpc_bank[1];
-  p.u1.s.pages_in_bank[2] = lll_rpc_bank[2];
-  p.u1.s.pages_in_bank[3] = lll_rpc_bank[3];
-  p.u1.s.nr_pages = lll_pages + lll_rpc_vram_pages;
-  p.u1.s.pages_in_vram = lll_rpc_vram_pages;
+   if (lll_tag_list) {
+       /* New style tag list */
+       struct tag *tag = (struct tag *)(lll_params + 0x100);
+       int bank;
 
-  if (strlen(commandline) + 1 >= sizeof(p.commandline)) lll_die("\0\0\0\0lll_toolong");
-  strcpy(p.commandline, commandline);
-  p.u1.s.flags = FLAG_READONLY;
-  p.u1.s.page_size = PAGE_SIZE;
-  p.u1.s.adfsdrives = osbyte1(osbyte_READ_CMOS, 135, 0);
-  if (lll_initrd_size) {
-    p.u1.s.initrd_size = lll_initrd_size;
-    p.u1.s.initrd_start = lll_initrd_page * PAGE_SIZE + 0xC0000000;
-  }
+       memset(tag, 0, tag_size(tag_core) * 4);
+       tag->hdr.size = tag_size(tag_core);
+       tag->hdr.tag  = ATAG_CORE;
+   
+       tag->u.core.flags    = FLAG_READONLY;
+       tag->u.core.pagesize = PAGE_SIZE;
+   
+       tag = lll_add_tag(tag, ATAG_INITRD2, tag_size(tag_initrd));
+       tag->u.initrd.size  = lll_initrd_size;
+       tag->u.initrd.start = lll_da_ctrl.page_to_physical[lll_initrd_page];
 
-  p.u1.s.bytes_per_char_v = 8;
-  os_read_vdu_variables((os_vdu_var_list *)(&vars), values);
-  p.u1.s.bytes_per_char_h = 1 << values[0];
-  p.u1.s.video_num_cols = (values[1] + 1) / 8;
-  p.u1.s.video_num_rows = (values[2] + 1) / 8;
-  os_byte(osbyte_OUTPUT_CURSOR_POSITION, 0, 0, (int *)&p.u1.s.video_x, (int *)&p.u1.s.video_y);
+       for (bank = 0; bank < NUM_BANKS; bank++) {
+         if (lll_memory_bank[bank].offset && lll_memory_bank[bank].size) {
+           tag = lll_add_tag(tag, ATAG_MEM, tag_size(tag_mem32));
+           tag->u.mem.size  = lll_memory_bank[bank].size * PAGE_SIZE;
+           tag->u.mem.start = lll_memory_bank[bank].offset;
+         }
+       }
+
+       tag = lll_add_tag(tag, ATAG_ACORN, tag_size(tag_acorn));
+       tag->u.acorn.vram_pages = lll_rpc_vram_pages;
+       tag->u.acorn.adfsdrives = osbyte1(osbyte_READ_CMOS, 135, 0);
+   
+
+       tag = lll_add_tag(tag, ATAG_CMDLINE, tag_size(tag_cmdline));
+       tag->hdr.size = (strlen(commandline) + 3 +
+                         sizeof(struct tag_header)) >> 2;
+       strcpy(tag->u.cmdline.cmdline, commandline);
+   
+       tag = lll_add_tag(tag, ATAG_NONE, 0);
+
+    } else {
+       /* Old style struct */
+        static const os_VDU_VAR_LIST(4) vars = {{
+            os_MODEVAR_LOG2_BPP,
+            os_MODEVAR_XWIND_LIMIT,
+            os_MODEVAR_YWIND_LIMIT,
+            -1
+        }};
+        int values[4];
+
+        /* Use the last banks found */
+        p.u1.s.pages_in_bank[0] = lll_memory_bank[NUM_BANKS - 8].size;
+        p.u1.s.pages_in_bank[1] = lll_memory_bank[NUM_BANKS - 7].size;
+        p.u1.s.pages_in_bank[2] = lll_memory_bank[NUM_BANKS - 6].size;
+        p.u1.s.pages_in_bank[3] = lll_memory_bank[NUM_BANKS - 5].size;
+        p.u1.s.nr_pages = lll_pages + lll_rpc_vram_pages;
+        p.u1.s.pages_in_vram = lll_rpc_vram_pages;
+   
+        if (strlen(commandline) + 1 >= sizeof(p.commandline)) lll_die("\0\0\0\0lll_toolong");
+        strcpy(p.commandline, commandline);
+        p.u1.s.flags = FLAG_READONLY;
+        p.u1.s.page_size = PAGE_SIZE;
+        p.u1.s.adfsdrives = osbyte1(osbyte_READ_CMOS, 135, 0);
+        if (lll_initrd_size) {
+            p.u1.s.initrd_size = lll_initrd_size;
+            p.u1.s.initrd_start = lll_initrd_page * PAGE_SIZE + lll_phys_memory;
+        }
+     
+        p.u1.s.bytes_per_char_v = 8;
+        os_read_vdu_variables((os_vdu_var_list *)(&vars), values);
+        p.u1.s.bytes_per_char_h = 1 << values[0];
+        p.u1.s.video_num_cols = (values[1] + 1) / 8;
+        p.u1.s.video_num_rows = (values[2] + 1) / 8;
+        os_byte(osbyte_OUTPUT_CURSOR_POSITION, 0, 0, (int *)&p.u1.s.video_x, (int *)&p.u1.s.video_y);
+    }
 }
