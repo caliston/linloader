@@ -1,0 +1,4 @@
+| Linloader 0.35 !Run  © Timothy Baldwin 1999 (GNU General Public License)
+| $Id: !Run,v 1.2 1999/08/11 20:29:29 uid1 Exp $
+
+/<Obey$Dir>.LL %*0 <Obey$Dir>._M1

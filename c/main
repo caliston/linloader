@@ -26,8 +26,8 @@
 #include <stdarg.h>
 #include "kernel.h"
 
-#include "os.h"
-#include "osbyte.h"
+#include "oslib/os.h"
+#include "oslib/osbyte.h"
 
 #include "getopt.h"
 
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
   char commandline[2048];
   char *initrd_file = 0, *kernel_file = 0;
   const char *show_text = 0;
-  int c, clear = 1, banner = 1, i, j, extra = 0;
+  int c, clear = 1, banner = 1, i, j, extra = 0, tmp;
 #ifdef CHECK_MEM
   {
     extern void __heap_checking_on_all_allocates(int on);
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
   } while(c != -1);
   if (show_text) {
     char s[2048];
-    messagetrans_gs_lookup(&lll_msgs, show_text, s, 2048, 0, 0, 0, 0);
+    messagetrans_gs_lookup(&lll_msgs, show_text, s, 2048, 0, 0, 0, 0, &tmp);
     if(puts(s) == EOF) _kernel_raise_error(_kernel_last_oserror());
     exit(EXIT_SUCCESS);
   }
@@ -138,14 +138,16 @@ int main(int argc, char **argv) {
   if (clear) osscreenmode_select(osscreenmode_current()); /* Clear screen */
   if (banner) {
     char s[1024];
-    messagetrans_gs_lookup(&lll_msgs, "lll_banner", s, 1024, lll_version, lll_sys_name, 0, 0);
+    int tmp;
+    messagetrans_gs_lookup(&lll_msgs, "lll_banner", s, 1024, lll_version, lll_sys_name, 0, 0, &tmp);
     os_write0(s);
   }
 
   lll_boot_gzip(kernel_file, initrd_file, commandline, 0, 0);
   if (lll_noboot) {
     char s[128];
-    messagetrans_gs_lookup(&lll_msgs, "lll_anykey", s, 128, 0, 0, 0, 0);
+    int tmp;
+    messagetrans_gs_lookup(&lll_msgs, "lll_anykey", s, 128, 0, 0, 0, 0, &tmp);
     os_write0(s);
     os_new_line();
     _kernel_osrdch();

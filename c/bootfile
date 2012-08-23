@@ -24,9 +24,9 @@
 #include <string.h>
 #include "kernel.h"
 
-#include "osfind.h"
-#include "osargs.h"
-#include "osgbpb.h"
+#include "oslib/osfind.h"
+#include "oslib/osargs.h"
+#include "oslib/osgbpb.h"
 
 #include "internal.h"
 

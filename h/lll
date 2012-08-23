@@ -25,8 +25,8 @@
 #include <stddef.h>
 
 #ifdef LLL_USE_OSLIB
-#include "osfind.h"
-#include "messagetrans.h"
+#include "oslib/osfind.h"
+#include "oslib/messagetrans.h"
 #define lll_osfind_flags osfind_flags
 #define lll_void byte
 extern messagetrans_control_block lll_msgs;

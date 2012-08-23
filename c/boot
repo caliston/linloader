@@ -20,8 +20,8 @@
 /* $Id: boot.c,v 1.8 1999/08/11 20:18:24 uid1 Exp $ */
 
 
-#include "osfscontrol.h"
-#include "podule.h"
+#include "oslib/osfscontrol.h"
+#include "oslib/podule.h"
 
 #include "internal.h"
 

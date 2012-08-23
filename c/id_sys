@@ -40,9 +40,13 @@ void lll_id_sys(void) {
     lll_sys_id = 1;
     lll_sys_name = "Archimedies/A5000";
   }
+
   proc_id = lll_get_proc_id();
+
   dram_layout_is_riscpc = lll_rpc_bank[0] + lll_rpc_bank[1] + lll_rpc_bank[2] + lll_rpc_bank[3] == lll_pages;
+
   proc_arch = 3;
+
   if (mc_id == 0x5B980001 && dram_layout_is_riscpc && lll_rpc_vram_pages == 0) {
     lll_sys_name = "A7000";
     lll_sys_id = 4;
@@ -51,6 +55,12 @@ void lll_id_sys(void) {
     lll_sys_name = "A7000+";
     lll_sys_id = 5;
   }
+  else if (mc_id == 0xAA7C0001 && ( (proc_id & 0xFFF8F000) == 0x41007000 ) && lll_rpc_vram_pages == 0) {
+    lll_sys_name = "BUSH STB";
+    lll_sys_id = 5;
+    lll_rpc_bank[0]=1024;
+    lll_rpc_bank[1]=1024;
+   }
   else if (mc_id == 0xD4E70001 && dram_layout_is_riscpc && (lll_rpc_vram_pages == 0 || lll_rpc_vram_pages == 0x100 || lll_rpc_vram_pages == 0x200)) {
     if ((proc_id & 0xFFFFFFF0) == 0x4401A100) {
       lll_sys_name = "StrongARM Risc PC";

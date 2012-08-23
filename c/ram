@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include "os.h"
+#include "oslib/os.h"
 #include "internal.h"
 
 unsigned lll_rpc_vram_pages, lll_rpc_bank[4], lll_pages;

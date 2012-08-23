@@ -1,0 +1,18 @@
+# $Id: M1,v 1.2 1999/08/11 20:19:22 uid1 Exp $
+lll_NoTaskW:%0 can't run in a TaskWindow
+lll_Arc:%0 does not work on Archimedes or A5000-like systems, to boot Linux on these systems you must use !Linux, which is available from http://www.arm.uk.linux.org/~rmk/armlinux.html
+lll_uksys:Sorry, %0 does not support this system
+lll_nomem:Out of memory (malloc failed)
+lll_toolong:Kernel command line to long (maxinum length 256)
+lll_unrec:Unrecognised
+
+# $Id: M1,v 1.1 1999/08/11 18:23:30 uid1 Exp $
+lll_banner:Linloader %0  © 1999 Timothy Baldwin|M|JParts © Russell King, Matthias Seifert and others|M|J|JSystem : %1|M|J|J
+lll_multird:%0 has been given more than one initial ram disc
+lll_multikernel:%0 has been given more than one kernel
+lll_bootfail:Boot failed for unknown reason
+lll_anykey:Press almost any key exit
+lll_nokernel:%0 must be given a kernel
+lll_help:Linloader boots Linux/ARM. The following options are supported:|J|J  -k, --kernel           RISC OS filename of the kernel to be booted, if this|J                          option is omitted the first non-option argument is|J                          used as the kernel filename.|J  -i, --initrd           RISC OS filename of the initial ram disc (initrd) to|J                          be loaded, alternatively a initial ram disc may be|J                          specified by a argument beginning "initrd=".|J  -c, --no-clear         Do not clear the screen.|J  -q, --quiet            Do not display banner.|J  -e, --extra-arguments  Prompt for extra kernel arguments before clearing the|J                          screen or displaying the banner.|J      --dry-run          Do a dry run, do not actually boot the kernel.|J  -h, --help             Show this help text.|J      --credits          Show credits.|J|JNote that Linloader does not (yet) shut down the desktop so all unsaved|Jwork will be lost. Linloader is © 1999 Timothy Baldwin and others, and is|Jreleased under the GNU GPL.|J
+lll_credits:Many thanks to Matthias Seifert for some memory controller identification|Jcode, Darren Salt for promptly fixing a bug in AS, Jonathan Coxhead and others|Jfor OSLib and the FSF for GNU getopt. Linloader contains code copyright|JMatthias Seifert, Russell King and others.|J
+lll_name:Linloader

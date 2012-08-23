@@ -1,3 +1,15 @@
+*** these are the sources for a linloader version for a BUSH STB ***
+They are broken in that they assume an 8meg memory simm and pass values
+to arm linux accordingly
+
+These sources have been modified to use a modern oslib distribution
+They require a norcroft linked zlib, source for which can be obtained
+same place you got this ie
+http://www.kyllikki.org
+
+
+
+
 Linloader 0.35 (Source Distribution)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Linloader is RISC OS command line program for booting Linux on Acorn
