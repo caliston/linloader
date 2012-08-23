@@ -1,0 +1,331 @@
+<html><head><title>GNU getopt</title></head><body><p>GNU getopt is licenced under the <a href="lesser.html">LGPL</a>, below is the man page for it from <a href="http://www.debain.org/">Debian GNU/Linux.</a></p><pre>
+
+
+
+GETOPT(3)           Linux Programmer's Manual           GETOPT(3)
+
+
+<b>NAME
+       </b>getopt - Parse command line options
+
+<b>SYNOPSIS
+       #include &lt;unistd.h&gt;
+
+       int getopt(int </b><u>argc</u><b>, char * const </b><u>argv[]</u><b>,
+                  const char *</b><u>optstring</u><b>);
+
+       extern char *</b><u>optarg</u><b>;
+       extern int </b><u>optind</u><b>, </b><u>opterr</u><b>, </b><u>optopt</u><b>;
+
+       #include &lt;getopt.h&gt;
+
+       int getopt_long(int </b><u>argc</u><b>, char * const </b><u>argv[]</u><b>,
+                  const char *</b><u>optstring</u><b>,
+                  const struct option *</b><u>longopts</u><b>, int *</b><u>longindex</u><b>);
+
+       int getopt_long_only(int </b><u>argc</u><b>, char * const </b><u>argv[]</u><b>,
+                  const char *</b><u>optstring</u><b>,
+                  const struct option *</b><u>longopts</u><b>, int *</b><u>longindex</u><b>);
+
+DESCRIPTION
+       </b>The  <b>getopt()  </b>function parses the command line arguments.
+       Its arguments <u>argc</u> and <u>argv</u> are  the  argument  count  and
+       array  as passed to the <b>main() </b>function on program invoca­
+       tion.  An element of <u>argv</u> that starts with `-' (and is not
+       exactly &quot;-&quot; or &quot;--&quot;) is an option element.  The characters
+       of this element (aside from the initial  `-')  are  option
+       characters.   If <b>getopt() </b>is called repeatedly, it returns
+       successively each of the option characters  from  each  of
+       the option elements.
+
+       If  <b>getopt()  </b>finds  another  option character, it returns
+       that character, updating the external variable <u>optind</u>  and
+       a  static  variable  <u>nextchar</u>  so  that  the  next call to
+       <b>getopt() </b>can resume the scan  with  the  following  option
+       character or <u>argv</u>-element.
+
+       If  there  are no more option characters, <b>getopt() </b>returns
+       <b>EOF</b>.  Then <u>optind</u> is the index in <u>argv</u> of the first  <u>argv</u>-
+       element that is not an option.
+
+       <u>optstring</u>  is  a  string  containing the legitimate option
+       characters.  If such a character is followed by  a  colon,
+       the  option  requires  an  argument,  so  <b>getopt  </b>places a
+       pointer to the following text in the same <u>argv</u>-element, or
+       the  text  of  the following <u>argv</u>-element, in <u>optarg</u>.  Two
+       colons mean an option takes an optional arg; if  there  is
+       text  in  the  current  <u>argv</u>-element,  it  is  returned in
+       <u>optarg</u>, otherwise <u>optarg</u> is set to zero.  This  is  a  GNU
+       extension.   If  <u>optstring</u>  contains <b>W </b>followed by a semi­
+       colon, then <b>-W foo </b>is treated as the  long  option  <b>--foo</b>.
+       (The  <b>-W  </b>option is reserved by POSIX.2 for implementation
+
+
+
+GNU                         8 May 1998                          1
+
+
+
+
+
+GETOPT(3)           Linux Programmer's Manual           GETOPT(3)
+
+
+       extensions.)  This  behaviour  is  a  GNU  extension,  not
+       available with libraries before GNU libc 2.
+
+       By  default,  <b>getopt() </b>permutes the contents of <u>argv</u> as it
+       scans, so that eventually all the non-options are  at  the
+       end.   Two other modes are also implemented.  If the first
+       character of <u>optstring</u> is `+' or the environment  variable
+       POSIXLY_CORRECT  is  set,  then option processing stops as
+       soon as a non-option  argument  is  encountered.   If  the
+       first  character of <u>optstring</u> is `-', then each non-option
+       <u>argv</u>-element is handled as if it were the argument  of  an
+       option  with  character code 1.  (This is used by programs
+       that were written to expect options  and  other  <u>argv</u>-ele­
+       ments in any order and that care about the ordering of the
+       two.)  The special argument `--' forces an end of  option-
+       scanning regardless of the scanning mode.
+
+       If  <b>getopt()  </b>does  not  recognize an option character, it
+       prints an error message to stderr, stores the character in
+       <u>optopt</u>,  and returns `?'.  The calling program may prevent
+       the error message by setting <u>opterr</u> to 0.
+
+       The <b>getopt_long() </b>function works like <b>getopt() </b>except that
+       it  also  accepts long options, started out by two dashes.
+       Long option names may be abbreviated if  the  abbreviation
+       is unique or is an exact match for some defined option.  A
+       long option may take a parameter, of the form  <b>--arg=param
+       </b>or <b>--arg param</b>.
+
+       <u>longopts</u>  is a pointer to the first element of an array of
+       <b>struct option </b>declared in <b>&lt;getopt.h&gt; </b>as
+
+          struct option {
+              const char *name;
+              int has_arg;
+              int *flag;
+              int val;
+          };
+
+       The meanings of the different fields are:
+
+       <u>name</u>   is the name of the long option.
+
+       <u>has</u><b>_</b><u>arg</u>
+              is: <b>no_argument </b>(or 0) if the option does not  take
+              an argument, <b>required_argument </b>(or 1) if the option
+              requires an argument, or <b>optional_argument  </b>(or  2)
+              if the option takes an optional argument.
+
+       <u>flag</u>   specifies  how  results  are  returned  for  a long
+              option.   If  <u>flag</u>  is  <b>NULL</b>,  then   <b>getopt_long()
+              </b>returns <u>val</u>.  (For example, the calling program may
+              set <u>val</u> to the equivalent short option  character.)
+              Otherwise, <b>getopt_long() </b>returns 0, and <u>flag</u> points
+
+
+
+GNU                         8 May 1998                          2
+
+
+
+
+
+GETOPT(3)           Linux Programmer's Manual           GETOPT(3)
+
+
+              to a variable which is set to <u>val</u> if the option  is
+              found,  but  left  unchanged  if  the option is not
+              found.
+
+       <u>val</u>    is the value to return, or to load into  the  vari­
+              able pointed to by <u>flag</u>.
+
+       The  last  element  of  the  array  has  to be filled with
+       zeroes.
+
+       If <u>longindex</u> is not <b>NULL</b>, it points to a variable which is
+       set  to the index of the long option relative to <u>longopts</u>.
+
+       <b>getopt_long_only() </b>is like <b>getopt_long()</b>, but `-' as  well
+       as  `--'  can  indicate  a long option.  If an option that
+       starts with `-' (not `--') doesn't match  a  long  option,
+       but  does  match  a  short option, it is parsed as a short
+       option instead.
+
+<b>RETURN VALUE
+       </b>The <b>getopt() </b>function returns the option character if  the
+       option  was found successfully, `:' if there was a missing
+       parameter for one of  the  options,  `?'  for  an  unknown
+       option character, or <b>EOF </b>for the end of the option list.
+
+       <b>getopt_long()   </b>and  <b>getopt_long_only()  </b>also  return  the
+       option character when a short option is recognized.  For a
+       long option, they return <u>val</u> if <u>flag</u> is <b>NULL</b>, and 0 other­
+       wise.  Error and EOF returns are the same as for <b>getopt()</b>,
+       plus  `?'  for an ambiguous match or an extraneous parame­
+       ter.
+
+<b>ENVIRONMENT VARIABLES
+       POSIXLY_CORRECT
+              </b>If this is set, then  option  processing  stops  as
+              soon as a non-option argument is encountered.
+
+       <b>_&lt;PID&gt;_GNU_nonoption_argv_flags_
+              </b>This  variable  was used by <b>bash </b>2.0 to communicate
+              to GNU libc which  arguments  are  the  results  of
+              wildcard  expansion and so should not be considered
+              as options.  This behaviour  was  removed  in  <b>bash
+              </b>version  2.01, but the support remains in GNU libc.
+
+<b>EXAMPLE
+       </b>The following  example  program,  from  the  source  code,
+       illustrates the use of <b>getopt_long() </b>with most of its fea­
+       tures.
+
+       #include &lt;stdio.h&gt;
+
+       int
+       main (argc, argv)
+            int argc;
+
+
+
+GNU                         8 May 1998                          3
+
+
+
+
+
+GETOPT(3)           Linux Programmer's Manual           GETOPT(3)
+
+
+            char **argv;
+       {
+         int c;
+         int digit_optind = 0;
+
+         while (1)
+           {
+             int this_option_optind = optind ? optind : 1;
+             int option_index = 0;
+             static struct option long_options[] =
+             {
+               {&quot;add&quot;, 1, 0, 0},
+               {&quot;append&quot;, 0, 0, 0},
+               {&quot;delete&quot;, 1, 0, 0},
+               {&quot;verbose&quot;, 0, 0, 0},
+               {&quot;create&quot;, 1, 0, 'c'},
+               {&quot;file&quot;, 1, 0, 0},
+               {0, 0, 0, 0}
+             };
+
+             c = getopt_long (argc, argv, &quot;abc:d:012&quot;,
+                        long_options, &amp;option_index);
+             if (c == -1)
+            break;
+
+             switch (c)
+               {
+               case 0:
+                 printf (&quot;option %s&quot;, long_options[option_index].name);
+                 if (optarg)
+                   printf (&quot; with arg %s&quot;, optarg);
+                 printf (&quot;\n&quot;);
+                 break;
+
+               case '0':
+               case '1':
+               case '2':
+                 if (digit_optind != 0 &amp;&amp; digit_optind != this_option_optind)
+                   printf (&quot;digits occur in two different argv-elements.\n&quot;);
+                 digit_optind = this_option_optind;
+                 printf (&quot;option %c\n&quot;, c);
+                 break;
+
+               case 'a':
+                 printf (&quot;option a\n&quot;);
+                 break;
+
+               case 'b':
+                 printf (&quot;option b\n&quot;);
+                 break;
+
+               case 'c':
+                 printf (&quot;option c with value `%s'\n&quot;, optarg);
+                 break;
+
+
+
+GNU                         8 May 1998                          4
+
+
+
+
+
+GETOPT(3)           Linux Programmer's Manual           GETOPT(3)
+
+
+               case 'd':
+                 printf (&quot;option d with value `%s'\n&quot;, optarg);
+                 break;
+
+               case '?':
+                 break;
+
+               default:
+                 printf (&quot;?? getopt returned character code 0%o ??\n&quot;, c);
+               }
+           }
+
+         if (optind &lt; argc)
+           {
+             printf (&quot;non-option ARGV-elements: &quot;);
+             while (optind &lt; argc)
+             printf (&quot;%s &quot;, argv[optind++]);
+             printf (&quot;\n&quot;);
+           }
+
+         exit (0);
+       }
+
+<b>BUGS
+       </b>This manpage is confusing.
+
+       The POSIX.2 specification  of  <b>getopt()  </b>has  a  technical
+       error  described  in  POSIX.2 Interpretation 150.  The GNU
+       implementation (and probably  all  other  implementations)
+       implements  the  correct behaviour rather than that speci­
+       fied.
+
+<b>CONFORMING TO
+       getopt()</b>:
+              POSIX.2,   provided   the   environment    variable
+              POSIXLY_CORRECT is set.  Otherwise, the elements of
+              <u>argv</u> aren't really const, because we permute  them.
+              We  pretend  they're  const  in the prototype to be
+              compatible with other systems.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GNU                         8 May 1998                          5
+
+</body></html>

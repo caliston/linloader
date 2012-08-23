@@ -1,0 +1,68 @@
+/*
+ LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Copyright (C) 1999  Timothy Baldwin
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/* $Id$ */
+
+#include "ram.h"
+
+extern unsigned id_sys_get_proc_id(void);
+extern unsigned id_sys_get_mc_id(void);
+
+const int sys_to_linux[] = {-1, -1, -1, 1, 1, 1};
+
+unsigned id_sys_id;
+char *id_sys_name = "Unrecognised";
+
+void id_sys(void) {
+  unsigned mc_id, proc_id, proc_arch;
+  if (id_sys_id) return;
+  if (!dram_pages) check_ram();
+  proc_id = id_sys_get_proc_id();
+  mc_id = id_sys_get_mc_id();
+  id_sys_id = 0;
+  if (mc_id == 0) {
+    proc_arch = 2;
+    id_sys_id = 1;
+    id_sys_name = "Archimedies/A5000";
+  }
+  proc_arch = 3;
+  if (mc_id == 0x5B980001 && dram_layout_is_riscpc) {
+    id_sys_name = "A7000";
+    id_sys_id = 4;
+  }
+  else if (mc_id == 0xAA7C0001 && dram_layout_is_riscpc) {
+    id_sys_name = "A7000+";
+    id_sys_id = 5;
+  }
+  else if (mc_id == 0xD4E70001 && dram_layout_is_riscpc) {
+    if ((proc_id & 0xFFFFFFF0) == 0x4401A100) {
+      id_sys_name = "StrongARM Risc PC";
+      proc_arch = 4;
+      id_sys_id = 3;
+    }
+    else if ((proc_id & 0xFFF8F000) == 0x41007000) {
+      id_sys_name = "Risc PC 700";
+      id_sys_id = 3;
+    }
+    else if ((proc_id & 0xFFFFFF00) == 0x41560600) {
+      id_sys_name = "Risc PC 600";
+      id_sys_id = 3;
+    }
+  }
+}

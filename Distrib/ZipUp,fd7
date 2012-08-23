@@ -1,0 +1,40 @@
+
+| LinLoader, Boots Linux/ARM on RISC OS based systems.
+| Copyright (C) 1999  Timothy Baldwin
+|
+| This program is free software; you can redistribute it and/or modify
+| it under the terms of the GNU General Public License as published by
+| the Free Software Foundation; either version 2 of the License, or
+| (at your option) any later version.
+|
+| This program is distributed in the hope that it will be useful,
+| but WITHOUT ANY WARRANTY; without even the implied warranty of
+| MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+| GNU General Public License for more details.
+|
+| You should have received a copy of the GNU General Public License
+| along with this program; if not, write to the Free Software
+| Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+| $Id$
+
+dir <obey$dir>.^
+
+echo Compling...
+amu dist
+
+echo Archiving llsrc-0/20/zip...
+remove llsrc-0/20/zip
+zip -r9D llsrc-0/20/zip README Docs o.asm o.mcid o.fixup c h s Makefile Distrib cat2html
+zipnote -w llsrc-0/20/zip < Distrib.src
+
+echo Archiving llbin-0/20/zip...
+remove llbin-0/20/zip
+zip -r9D llbin-0/20/zip Distrib.bin_README LinLoader Docs -x Docs/source*
+zipnote -w llbin-0/20/zip < Distrib.bin
+
+|echo Archiving lllib-0/20/zip...
+|remove lllib-0/20/zip
+|zip -9 -r lllib-0/20/zip l Docs h.id_sys h.boot
+
+echo Finished

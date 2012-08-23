@@ -1,0 +1,50 @@
+
+; LinLoader, Boots Linux/ARM on RISC OS based systems.
+; Copyright (C) 1999  Timothy Baldwin
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+;	$Id$
+
+	AREA	FIXUP, CODE, READONLY
+
+	EXPORT	fixup_start
+	EXPORT	fixup_end
+
+fixup_start
+	SUB	r3, r3, #1
+	ADR	r4, fixup_end
+loop1	LDMIA	r4!, {r5}
+loop2	LDMIA	r5!, {r6, r7}
+	TEQ	r6, #0
+	BEQ	start_kernel
+loop3	LDMIA	r6!, {r0, r8, r9, r10, r11, r12, r13, r14}
+	STMIA	r7!, {r0, r8, r9, r10, r11, r12, r13, r14}
+	LDMIA	r6!, {r0, r8, r9, r10, r11, r12, r13, r14}
+	STMIA	r7!, {r0, r8, r9, r10, r11, r12, r13, r14}
+	TST	r6, r3
+	BNE	loop3
+	TST	r5, r3
+	BNE	loop2
+	B	loop1
+
+start_kernel
+	MOV	r0, #0
+	MOV	pc, r2
+
+	LTORG
+fixup_end
+
+	END

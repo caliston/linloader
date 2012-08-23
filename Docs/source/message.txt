@@ -1,0 +1,120 @@
+Path: reinhouse.freeserve.co.uk!news.theplanet.net!diablo.theplanet.net!dispose.news.demon.net!demon!newsfeed.icl.net!newspeer.clara.net!news.clara.net!newsfeed.nacamar.de!fu-berlin.de!newsfeed01.btx.dtag.de!newsmm00.btx.dtag.de!news.btx.dtag.de!not-for-mail
+From: M.Seifert@t-online.de (Matthias Seifert)
+Newsgroups: comp.sys.acorn.programmer
+Subject: Re: Identifying a Risc PC?
+Date: Fri, 02 Apr 1999 07:51:25 +0200
+Organization: Software Evolutions
+Message-ID: <48ec4ce873M.Seifert@t-online.de>
+References: <2b2b1deb48%tim@reinhouse.freeserve.co.uk> <48eb4be1b8M.Seifert@t-online.de> <d0791bec48%tim@reinhouse.freeserve.co.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
+X-Trace: news06.btx.dtag.de 923034428 27844 097787120-0001 990402 06:27:08
+X-Complaints-To: abuse@t-online.de
+X-Sender: 097787120-0001@t-online.de
+Lines: 103
+Xref: reinhouse.freeserve.co.uk comp.sys.acorn.programmer:4852
+
+Timothy Baldwin <tim@reinhouse.freeserve.co.uk> wrote:
+> In message <48eb4be1b8M.Seifert@t-online.de>
+>           M.Seifert@t-online.de (Matthias Seifert) wrote:
+
+> > Timothy Baldwin <tim@reinhouse.freeserve.co.uk> wrote:
+> > > How can a RISC OS (C + assembler) program tell between a Risc PC and
+> > > some future RISC OS system?
+> > 
+> > I would simply check if an IOMD is present and if so, which type it is
+> > (i.e. IOMD20/21 in a RPC or the 'embedded' IOMDs of ARM7500 and
+> > ARM7500+).
+
+> How?
+
+First you have to check the RISC OS version as RISC OS 2 has a bug in the
+SWI "OS_ReadSysInfo" which crashes the machine if you call this SWI with
+anything but 0 in R0.
+
+Then you call the SWI "OS_ReadSysInfo" 2. The bits 16 to 23 of returned
+register R0 tell you which memory control chip is present (0=MEMC, 1=IOMD).
+
+If you want to know _which_ type of IOMD is present, you have to check
+this directly (as there are no OS commands to do so). For this you first
+need the base address of the IOMD which you can get in two ways:
+
+1) You simply assume that it is &03200000 as is stated in the PRM, TRM
+   and even in the datasheets of ARM7500(FE) (if this isn't the case you
+   can be pretty sure that many programs will get in trouble with this
+   hardware)
+
+2) You write a 'fake' device driver which receives the base adress of the
+   IOC in R3 when called
+
+I would use method 1. ;-)
+
+Now you read the IOMD chip ID which you find at offset &94 (low byte) and
+&98 (high byte). (This doesn't work if the processor is in USR mode.)
+
+The complete code may look something like:
+
+
+
+ STMFD  R13!,{R1-R4,R14}
+
+ MOV    R0,#129           ;
+ MOV    R1,#0             ;
+ MOV    R2,#&ff           ;
+ SWI    "OS_Byte"         ; Read OS identifier (R1), corrupts R0 and R2
+
+ CMP    R1,#&A3           ; Is it at least RISC OS 3?
+
+ MOVLT  R0,#0             ; No -> must be MEMC
+ BLT    Finished          ;
+
+ MOV    R0,#2             ;
+ SWI    "XOS_ReadSysInfo" ; Read system info, returns values in R0-R4
+
+ MOVVS  R0,#0             ; An error occured (don't know how, but if
+ BVS    Finished          ; so, I would say that we found a MEMC...)
+
+ MOV    R0,R0,LSR #16     ;
+ AND    R0,R0,#&FF        ; 0 = MEMC, 1 = IOMD
+
+ TEQ    R0,#1             ; Is it an IOMD?
+ BNE    Finished          ; No -> exit
+
+ MOV    R4,PC             ; Get actual processor mode (assumes that ARM is in
+                          ; 26 bit mode)
+
+ TST    R4,#%11           ; (assumes that ARM is in 26 bit mode)
+ SWIEQ  "OS_EnterOS"      ; Change into SVC mode if needed
+
+ MOV    R1,#&03200000     ; Base address of IOMD
+ LDRB   R2,[R1,#&94]      ; Low byte of IOMD ID
+ ORR    R0,R0,R2,LSL #16
+ LDRB   R2,[R1,#&98]      ; High byte of IOMD ID
+ ORR    R0,R0,R2,LSL #24
+
+ TST    R4,#%11           ;
+ TEQEQP R4,#0             ; Return to original processor mode if needed
+                          ; (assumes that ARM is in 26 bit mode)
+
+Finished
+ LDMFD  R13!,{R1-R4,PC}
+
+
+
+Possible results in R0 (AFAIK):
+
+&00000000: MEMC
+&5B980001: embedded IOMD of ARM7500
+&AA7C0001: embedded IOMD of ARM7500FE
+&D4E70001: IOMD of Risc PC
+&00000002: Future type of memory controller
+&00000003: Future type of memory controller
+..
+&000000FF: Future type of memory controller
+
+-- 
+ _ _                               |  Acorn Risc PC, StrongARM @ 287 MHz
+| | |   _, _|__|_ |)   '  _,   ,   |     130 Mbyte RAM, ~30 Gbyte HD
+| | |  / |  |  |  |/\  | / |  / \  | ------------------------------------
+| | |_/\/|_/|_/|_/|  |/|/\/|_/ \/  |   http://www.deutschlandwetter.de

@@ -1,0 +1,57 @@
+/*
+ LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Copyright (C) 1999  Timothy Baldwin
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/* $Id$ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
+#include "os.h"
+#include "ram.h"
+
+unsigned bank1_pages, bank2_pages;
+int vram_pages, dram_pages, dram_layout_is_riscpc;
+
+unsigned find_dram(byte *table, unsigned base) {
+  unsigned count = 0;
+  while(count < 0x8000 && ((table[(base + count) / 2] & 7) == 1)) count += 128;
+  return count;
+}
+
+void check_ram(void) {
+  byte *table;
+  int page_size, page_size2;
+  table = malloc(osmemory_read_arrangement_table_size(NULL));
+  osmemory_read_arrangement_table(table);
+  bank1_pages = find_dram(table, bank1_base);
+  bank2_pages = find_dram(table, bank2_base);
+  osmemory_read_size(osmemory_TYPE_DRAM << osmemory_TYPE_SHIFT, &dram_pages, (int *)&page_size);
+  osmemory_read_size(osmemory_TYPE_VRAM << osmemory_TYPE_SHIFT, &vram_pages, (int *)&page_size2);
+  assert(page_size == PAGE_SIZE);
+  assert(page_size == page_size2);
+  dram_layout_is_riscpc = bank1_pages + bank2_pages == dram_pages;
+}
+
+unsigned p2r(unsigned x) {
+  return x < bank2_base ? x - bank1_base : x + bank1_pages - bank2_base;
+}
+
+unsigned r2p(unsigned x) {
+  return x > bank1_pages ? x + bank2_base - bank1_pages : x + bank1_base;
+}

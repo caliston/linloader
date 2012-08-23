@@ -1,0 +1,49 @@
+<html><head><title>LinLoader 0.20 instructions</title></head><body>
+<!-- $Id$ -->
+<h1>LinLoader 0.20</h1>
+<h2>Introduction</h2>
+<p>LinLoader is RISC OS command line program for booting Linux on Acorn
+RiscPCs (and hopefully later RISC OS systems), it does not provide a boot
+menu, or shut down the desktop. LinLoader is released under the
+<a href="gpl.html">GNU GPL</a> and is &copy; Timothy Baldwin and <a href="#credits">others.</a></p>
+<p>Note that some links only work in the source distribution.</p>
+<h2>Disclaimer</h2>
+<p>LinLoader is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<a href="gpl.html">GNU General Public License</a> for more details.</p>
+<h2>Using LinLoader</h2>
+<h3>Options</h3>
+<table><thead><tr><td>Short Option<td>Long Option<td>Description</thead><tbody>
+<tr><td>
+<tr><td><var>-k</var><td><var>--kernel</var><td>RISC OS filename of the kernel to be booted, if this option is omitted the first non-option argument is used as the kernel filename.
+<tr><td><var>-i</var><td><var>--initrd</var><td>RISC OS filename of the initial ram disc (initrd) to be loaded, alternatively (for <a href="#loadlin">compatibility with <cite>LOADLIN</cite></a>) a initial ram disc may be specified by a argument beginning &quot;<var>initrd=</var>&quot;.
+<tr><td><var>-c</var><td><var>--no-clear</var><td>Do not clear the screen.
+<tr><td><var>-q</var><td><var>--quiet</var><td>Do not display banner.
+<tr><td><var>-e</var><td><var>--extra-arguments</var><td>Prompt for extra kernel arguments before clearing the screen or displaying the banner.
+<tr><td><td><var>--dry-run</var><td>Do a dry run, do not actually boot the kernel, but instead wait for a keypress, then exit. This is intended for testing LinLoader.
+<tr><td><var>-h</var><td><var>--help</var><td>Show help text.
+<tr><td><td><var>--credits</var><td>Show <a href="#credits">credits.</a>
+</tbody></table>
+<p>Long options may be abbreviated provided they remain unique. If LinLoader is given an option of <var>--</var> then all following arguments are not treated as options, this is useful if you want to pass an argument to the kernel which begins with <code>-</code>.</p>
+<h3>Examples</h3><ul>
+<li><kbd>LinLoader ADFS::4.$.L.zImage root=/dev/hda3</kbd>
+<li><kbd>LinLoader  --kernel=ADFS::4.$.L.zImage -- root=/dev/hda3 -b</kbd>
+<li><kbd>LinLoader ADFS::4.$.L.zImage initrd=ADFS::4.$.L.initrd</kbd>
+<li><kbd>LinLoader ADFS::4.$.L.zImage --initrd ADFS::4.$.L.initrd</kbd>
+<li><kbd>LinLoader -k ADFS::4.$.L.zImage -iADFS::4.$.L.initrd</kbd></ul>
+<a name="loadlin"><h3>LOADLIN like options</h3>
+<p>By prefixing the arguments with <var>--</var> LinLoader can be made to accept options like those of <cite>LOADLIN</cite>.</p></a>
+<h2>Building LinLoader</h2>
+<p>Currently to build LinLoader you need <a href="http://www.youmustbejoking.demon.co.uk/">AS 1.30 2nd March 1999</a> or later and Acorn C.</p>
+<a name="credits"><h2>Credits</h2><ul>
+<li>Matthias Seifert for the <a href="source/message.html">memory controller identification code</a> which LinLoader <a href="../s/mcid">uses.</a>
+<li><a href="mailto:linux@arm.linux.org.uk">Russell King</a> for the <a href="http://www.arm.linux.org.uk/">ARM Port</a> of <a href="http:/www.linux.org/">Linux,</a> especially the header file <a href="../h/setup"><cite>asm-arm/setup.h</cite></a> which is used by LinLoader.
+<li>The <a href="http://www.gnu.org/">Free Software Foundation</a> for <a href="source/getopt.html">GNU getopt.</a>
+<li>OSLib developers for <a href="http://www.arcade.demon.co.uk/oslib/homepage.html">OSLib</a>
+<li><a href="http://www.xs4all.nl/~erikgrnh/">&quot;erikgrnh&quot;</a> for the <a href="http://www.xs4all.nl/~erikgrnh/acorn/rcsinfo/">RISC OS port</a> of RCS.
+<li>And it would not be a complete list without Acorn, for Acorn C/C++, however they are not really deserving of a mention.
+</ul></a>
+<h2>Contacts</h2>
+<p>I (Timothy Baldwin) can be contacted at <a href="mailto:tim@reinhouse.freeserve.co.uk">tim@reinhouse.freeserve.co.uk</a>, LinLoader can be downloaded from <a href="http://www.reinhouse.freeserve.co.uk/riscos/linloader/">http://www.reinhouse.freeserve.co.uk/riscos/linloader/</a>
+</body></html>

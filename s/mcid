@@ -1,0 +1,69 @@
+
+; LinLoader, Boots Linux/ARM on RISC OS based systems.
+; Copyright (C) 1999  Matthias Seifert and Timothy Baldwin
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+;	$Id$
+
+OS_Byte				*	&6
+OS_EnterOS			*	&16
+OS_ReadSysInfo			*	&58
+XOS_ReadSysInfo			*	&20058
+
+	AREA	ASM, CODE, READONLY
+
+	EXPORT	id_sys_get_mc_id
+	HEAD	"id_sys_get_mc_id"
+id_sys_get_mc_id
+	STACK	v=1
+
+	MOV	r0, #129
+	MOV	r1, #0
+	MOV	r2, #&FF
+	SWI	OS_Byte		; Read OS identifier (r1), corrupts r0 and r2
+
+	CMP	r1, #&A3	; Is it at least RISC OS 3?
+
+	MOVLT	r0, #0		; No -> must be MEMC
+	RETLT
+
+	MOV	r0, #2
+	SWI	XOS_ReadSysInfo	; Read system info, returns values in r0-r4
+
+	MOVVS	r0, #0		; An error occured (don't know how, but if
+	RETVS			; so, I would say that we found a MEMC...)
+
+	MOV	r0, r0, LSR #16
+	AND	r0, r0, #&FF	; 0 = MEMC, 1 = IOMD
+
+	TEQ	r0,#1		; Is it an IOMD?
+	RETNE			; No -> exit
+
+	MRS	r4, CPSR
+	TST	r4, #&F
+	SWIEQ	OS_EnterOS	; Change into SVC mode
+
+	MOV	r1, #&03200000	; Base address of IOMD
+	LDRB	r2, [r1, #&94]	; Low byte of IOMD ID
+	ORR	r0, r0, r2, LSL #16
+	LDRB	r2, [r1, #&98]	; High byte of IOMD ID
+	ORR	r0, r0, r2, LSL #24
+
+	MSR	CPSR_all, r4
+	NOP
+	RET
+
+	END

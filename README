@@ -1,0 +1,21 @@
+LinLoader 0.20 (Source Distribution)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+LinLoader is RISC OS command line program for booting Linux on Acorn
+RiscPCs (and hopefully later RISC OS systems), it does not provide a boot
+menu, or shut down the desktop. LinLoader is released under the GNU GPL,
+see the file Docs.GPL/txt and is © Timothy Baldwin and others.
+
+Full documentation can be found in the Docs directory.
+
+
+Disclaimer
+~~~~~~~~~~
+LinLoader is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+
+Availability
+~~~~~~~~~~~~
+LinLoader can be downloaded from :
+ http://www.reinhouse.freeserve.co.uk/riscos/linloader/

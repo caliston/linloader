@@ -1,0 +1,117 @@
+
+; LinLoader, Boots Linux/ARM on RISC OS based systems.
+; Copyright (C) 1999  Timothy Baldwin
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+;	$Id$
+
+OS_EnterOS	*	&16
+XOS_Memory	*	&20068
+
+PAGE_SIZE	*	&1000
+V		*	&10000000
+
+p15	CP	15
+c0	CN	0
+c1	CN	1
+c7	CN	7
+c10	CN	10
+
+	AREA	ASM, CODE, READONLY
+
+	EXPORT	mmu_off
+mmu_off
+	SWI	OS_EnterOS
+	MRS	r4, CPSR
+	BIC	r4, r4, #&DF
+	ORR	r4, r4, #&D3
+	MSR	CPSR_all, r4		; Enter SVC32 mode and disable IRQs
+;	MOV	r4, #&31
+;	MCR	p15, 0, r4, c1, c0	; Turn off caches
+;	MOV	r4, #0
+;	TEQ	r3, #0
+;	MCREQ	p15, 0, r4, c7, c0	; Flush cache
+;	MCRNE	p15, 0, r4, c7, c7	; Flush caches
+;	MCRNE	p15, 0, r4, c7, c10, 4	; Drain write buffer
+	MOV	r4, #&30
+	MCR	p15, 0, r4, c1, c0	; Turn off MMU
+	MOV	r15, r0			; Only 2 more insns in pipeline
+
+	EXPORT	id_sys_get_proc_id
+id_sys_get_proc_id
+	MOV	r1, r14
+	SWI	OS_EnterOS
+	MRC	p15, 0, r0, c0, c0	; Read processor id
+	MOVS	r15, r1
+
+	LTORG
+
+
+	EXPORT	da_handler_start
+	EXPORT	da_handler_end
+
+	MACRO
+$L	AVAIL	$A, $D
+$L	MOVS	r10, $A, LSR #13 ; log2(PAGE_SIZE) + 1
+	LDRB	r10, [r7, r10]
+	MOVCS	r10, r10, LSR #4
+	TST	r10, #1 ; Page is DRAM not absent.
+	$D.EQ	$A, $A, #PAGE_SIZE
+	BEQ	$L
+	TST	r10, #8
+	MEND
+
+da_handler_start
+	DCD	&20000000 ; Reserve page
+	DCD	0         ; Fixup Table
+	DCD	&10000000 ; Target page
+	TEQ	r0, #0
+	BICNES	pc, r14, #V
+	STMFD	r13!, {r1, r2, r9-r11, r14}
+	ADD	r11, r1, #8
+	MOV	r0, #7
+	ADR	r1, da_handler_end
+	SWI	XOS_Memory
+	LDMVSFD	r13!, {r1, r2, r9-r11, r14}
+	ORRVSS	pc, r14, #V
+	LDMIA	r12, {r6, r8, r9}
+	ADR	r7, da_handler_end
+loop	AVAIL	r9, ADD
+	MOVEQ	r0, r9
+	BLNE	fixup
+	ADD	r9, r9, #PAGE_SIZE
+	STR	r0, [r11], #12
+	SUBS	r2, r2, #1
+	BNE	loop
+	STMIA	r12, {r6, r8, r9}
+	LDMFD	r13, {r1, r2}
+	MOV	r0, #&C00
+	SWI	XOS_Memory
+	LDMFD	r13!, {r1, r2, r9-r11, r14}
+	MOVVC	r0, #0
+	BICVCS	pc, r14, #V
+	ORRS	pc, r14, #V
+
+fixup	SUB	r6, r6, #PAGE_SIZE
+floop	AVAIL	r6, SUB
+	BNE	fixup
+	STMIA	r8!, {r6, r9}
+	MOV	r0, r6
+	MOVS	pc, r14
+
+	LTORG
+da_handler_end
+	END

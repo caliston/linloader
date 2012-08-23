@@ -1,0 +1,204 @@
+/*
+ LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Copyright (C) 1999  Timothy Baldwin
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/* $Id$ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <stdarg.h>
+#include "kernel.h"
+
+#include "osfind.h"
+#include "osargs.h"
+#include "osgbpb.h"
+#include "osbyte.h"
+#include "osmodule.h"
+#include "osfscontrol.h"
+#include "podule.h"
+#include "taskwindow.h"
+
+#include "id_sys.h"
+#include "ram.h"
+
+#define long int
+#include "setup.h"
+#undef long
+
+#define da_ctrl (*((struct da_handler_control *)da_handler))
+#define da_handler_code (da_handler + sizeof(struct da_handler_control))
+#define params_size 0x8000
+#define fixup_size 0x40000
+#define p (*((struct param_struct *)(params_base + 0x100)))
+#define osfind_opts (osfind_ERROR_IF_ABSENT | osfind_ERROR_IF_DIR)
+
+
+struct da_handler_control {
+  unsigned reserve;
+  byte *fixup;
+  unsigned target;
+};
+
+extern void mmu_off(byte *fixup, unsigned archid, unsigned kernel, int page_size);
+
+os_dynamic_area_no kernel_da, params_da, initrd_da, fixup_da;
+byte *params_base, *fixup_base;
+byte *fixup_table, *da_handler;
+int initrd_size;
+unsigned initrd_page;
+static os_f file; /* Used by boot_linux() and free_mem() */
+
+void die(char *s, ...) {
+  _kernel_oserror e;
+  va_list ap;
+  va_start(ap, s);
+  vsprintf(e.errmess, s, ap);
+  va_end(ap);
+  e.errnum = 1;
+  _kernel_raise_error(&e);
+}
+
+os_dynamic_area_no load_file(char *da_name, char *file_name, os_f file, int size) {
+  os_dynamic_area_no da;
+  byte *base;
+  int da_size;
+  da = osdynamicarea_create(osdynamicarea_ALLOCATE_AREA, size, osdynamicarea_ALLOCATE_BASE, 0x180, size, da_handler_code, da_handler, da_name, &base, &da_size);
+  if (osgbpb_read_at(file, base, size, 0)) die("Unable to read file: %s", file_name);
+  memset(base + size, 0, da_size - size);
+  return da;
+}
+
+void free_mem(void) {
+  if (file) osfind_close(file);
+  if (kernel_da) osdynamicarea_delete(kernel_da);
+  if (params_da) osdynamicarea_delete(params_da);
+  if (initrd_da) osdynamicarea_delete(initrd_da);
+  if (fixup_da) osdynamicarea_delete(fixup_da);
+  if (da_handler) osmodule_free(da_handler);
+  if (fixup_table) osmodule_free(fixup_table);
+}
+
+void set_params(char *commandline) {
+  static const os_VDU_VAR_LIST(4) vars = {{
+      os_MODEVAR_LOG2_BPP,
+      os_MODEVAR_XWIND_LIMIT,
+      os_MODEVAR_YWIND_LIMIT,
+      -1
+  }};
+  int values[4];
+
+  memset(params_base, 0, params_size);
+  if (strlen(commandline) + 1 >= sizeof(p.commandline)) die("Kernel command line to long (maxinum length %i)", sizeof(p.commandline) - 1);
+  strcpy(p.commandline, commandline);
+  p.u1.s.pages_in_bank[0] = bank1_pages;
+  p.u1.s.pages_in_bank[2] = bank2_pages;
+  p.u1.s.flags = FLAG_READONLY;
+  p.u1.s.nr_pages = dram_pages + vram_pages;
+  p.u1.s.page_size = PAGE_SIZE;
+  p.u1.s.pages_in_vram = vram_pages;
+  p.u1.s.adfsdrives = osbyte1(osbyte_READ_CMOS, 135, 0);
+  if (initrd_size) {
+    p.u1.s.initrd_size = initrd_size;
+    p.u1.s.initrd_start = initrd_page * PAGE_SIZE + 0xC0000000;
+  }
+
+  p.u1.s.bytes_per_char_v = 8;
+  os_read_vdu_variables((os_vdu_var_list *)(&vars), values);
+  p.u1.s.bytes_per_char_h = 1 << values[0];
+  p.u1.s.video_num_cols = (values[1] + 1) / 8;
+  p.u1.s.video_num_rows = (values[2] + 1) / 8;
+  os_byte(osbyte_OUTPUT_CURSOR_POSITION, 0, 0, (int *)&p.u1.s.video_x, (int *)&p.u1.s.video_y);
+}
+
+
+void da_init(void) {
+  extern byte da_handler_end, da_handler_start;
+  byte * table;
+  da_handler = osmodule_alloc(&da_handler_end - &da_handler_start + osmemory_read_arrangement_table_size(NULL));
+  table = da_handler + (&da_handler_end - &da_handler_start);
+  memcpy(da_handler, &da_handler_start, &da_handler_end - &da_handler_start);
+  fixup_table = osmodule_alloc(fixup_size);
+  da_ctrl.fixup = fixup_table;
+  memset(fixup_table, 0, fixup_size);
+  xos_synchronise_code_areas(1, da_handler, da_handler + (&da_handler_end - &da_handler_start));
+}
+
+byte *fixup(void) {
+  extern byte fixup_start, fixup_end;
+  byte *fixup_page;
+  int real_size, i, pages;
+  os_page_block *blk;
+  size_t fixup_table_size = da_ctrl.fixup - fixup_table;
+  size_t fixup_da_size = fixup_table_size + 8 + PAGE_SIZE;
+  fixup_da = osdynamicarea_create(osdynamicarea_ALLOCATE_AREA, fixup_da_size, osdynamicarea_ALLOCATE_BASE, 0x180, fixup_da_size, da_handler_code, da_handler, "LinLoader (fixup)", &fixup_base, &real_size);
+  memcpy(fixup_base, &fixup_start, &fixup_end - &fixup_start);
+  memcpy(fixup_base + PAGE_SIZE, fixup_table, fixup_table_size);
+  pages = real_size / PAGE_SIZE;
+  blk = calloc(pages, sizeof(blk[0]));
+  if (!blk) die("LinLoader has run out of memory");
+  for(i = 0; i < pages; i++) blk[i].log_addr = fixup_base + i * PAGE_SIZE;
+  osmemory_page_op(osmemory_GIVEN_LOG_ADDR | osmemory_RETURN_PHYS_ADDR, blk, pages);
+  for(i = 1; i < pages; i++) ((byte **)(fixup_base + (&fixup_end - &fixup_start)))[i - 1] = blk[i].phys_addr;
+  fixup_page = blk[0].phys_addr;
+  free(blk);
+  return fixup_page;
+}
+
+void boot_linux(char *kernel_file, char *initrd_file, char *commandline, int noboot) {
+  byte *fixup_page;
+  if (!noboot && taskwindowtaskinfo_window_task()) die ("Linloader can't run in a TaskWindow");
+  id_sys();
+  if (id_sys_id == 1 || id_sys_id == 2) die("LinLoader does not work on Archimedes or A5000-like systems, to boot Linux on these systems you must use !Linux, which is available from http://www.arm.uk.linux.org/~rmk/armlinux.html");
+  if (sys_to_linux[id_sys_id] == -1) die("Sorry, LinLoader does not support this system, prehaps you should consider adding support yourself and sending patches to tim@reinhouse.freeserve.co.uk");
+
+  atexit(free_mem);
+  da_init();
+
+  if (initrd_file) {
+    file = osfind_openin(osfind_opts, initrd_file, NULL);
+    initrd_size = osargs_read_ext(file);
+    initrd_page = dram_pages - initrd_size / PAGE_SIZE - 1;
+    da_ctrl.reserve = da_ctrl.target = r2p(initrd_page) * PAGE_SIZE;
+    initrd_da = load_file("LinLoader (initrd)", initrd_file, file, initrd_size);
+    osfind_close(file); file = 0;
+  } else da_ctrl.reserve = r2p(dram_pages) * PAGE_SIZE;
+
+  da_ctrl.target = r2p(0) * PAGE_SIZE;
+  params_da = osdynamicarea_create(osdynamicarea_ALLOCATE_AREA, params_size, osdynamicarea_ALLOCATE_BASE, 0x180, params_size, da_handler_code, da_handler, "LinLoader (params)", &params_base, NULL);
+
+  file = osfind_openin(osfind_opts, kernel_file, NULL);
+  kernel_da = load_file("LinLoader (kernel)", kernel_file, file, osargs_read_ext(file));
+  osfind_close(file); file = 0;
+
+  set_params(commandline);
+
+  fixup_page = fixup();
+
+  if (!noboot) {
+    osfscontrol_shutdown();
+    os_remove_cursors();
+    os_cli("%cache off");
+    service_pre_reset(); /* Reset hardware */
+    mmu_off(fixup_page, sys_to_linux[id_sys_id], 0x10008000, PAGE_SIZE);
+  } else {
+    puts("Press any key");
+    _kernel_osrdch();
+  }
+}

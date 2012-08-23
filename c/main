@@ -1,0 +1,152 @@
+/*
+ LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Copyright (C) 1999  Timothy Baldwin
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/* $Id$ */
+
+#include <stdio.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include "kernel.h"
+
+#include "os.h"
+#include "osbyte.h"
+
+#include "getopt.h"
+#include "boot.h"
+#include "id_sys.h"
+
+const char help[] =
+  "LinLoader boots Linux/ARM. The following options are supported:\n"
+  "\n"
+  "  -k, --kernel           RISC OS filename of the kernel to be booted, if this\n"
+  "                          option is omitted the first non-option argument is\n"
+  "                          used as the kernel filename.\n"
+  "  -i, --initrd           RISC OS filename of the initial ram disc (initrd) to\n"
+  "                          be loaded, alternatively a initial ram disc may be\n"
+  "                          specified by a argument beginning \"initrd=\".\n"
+  "  -c, --no-clear         Do not clear the screen.\n"
+  "  -q, --quiet            Do not display banner.\n"
+  "  -e, --extra-arguments  Prompt for extra kernel arguments before clearing the\n"
+  "                          screen or displaying the banner.\n"
+  "      --dry-run          Do a dry run, do not actually boot the kernel.\n"
+  "  -h, --help             Show this help text.\n"
+  "      --credits          Show credits.\n"
+  "\n"
+  "Note that LinLoader does not (yet) shut down the desktop so all unsaved\n"
+  "work will be lost. LinLoader is © 1999 Timothy Baldwin and others, and is\n"
+  "released under the GNU GPL.";
+
+const char credits[] =
+  "Many thanks to Matthias Seifert for some memory controller identification\n"
+  "code, Darren Salt for promptly fixing a bug in AS, Jonathan Coxhead and others\n"
+  "for OSLib and the FSF for GNU getopt. LinLoader contains code copyright\n"
+  "Matthias Seifert, Russell King and others.";
+
+void signal_handler(int n) {
+  _kernel_raise_error(_kernel_last_oserror());
+}
+
+int in(char c, char const *s) {
+  while(*s != 0 && *s != c) s++;
+  return *s == c;
+}
+
+int main(int argc, char **argv) {
+  char commandline[2048];
+  char *initrd_file = 0, *kernel_file = 0;
+  const char *show_text = 0;
+  int c, clear = 1, banner = 1, i, j, noboot = 0, extra = 0;
+  signal(SIGOSERROR, signal_handler);
+  do {
+    static const struct option long_options[] = {
+      {"kernel", 1, 0, 'k'},
+      {"initrd", 1, 0, 'i'},
+      {"no-clear", 0, 0, 'c'},
+      {"quiet", 0, 0, 'q'},
+      {"dry-run", 0, 0, 'd'},
+      {"extra-arguments", 0, 0, 'e'},
+      {"help", 0, 0, 'h'},
+      {"credits", 0, 0, 1},
+      {0, 0, 0, 0}};
+    c = getopt_long(argc, argv, "W;k:i:cqeh", long_options, 0);
+    switch(c) {
+      case 'k':
+        if (kernel_file) die("Duplicate kernel");
+        kernel_file = optarg;
+        break;
+      case 'i':
+        if (initrd_file) die("Duplicate initrd");
+        initrd_file = optarg;
+        break;
+      case 'c':
+        clear = 0;
+        break;
+      case 'q':
+        banner = 0;
+        break;
+      case 'd':
+        noboot = 1;
+        break;
+      case 'e':
+        extra = 1;
+        break;
+      case 'h':
+        show_text = help;
+        break;
+      case 1:
+        show_text = credits;
+        break;
+    }
+  } while(c != -1);
+  if (show_text) {
+    if(puts(show_text) == EOF) _kernel_raise_error(_kernel_last_oserror());
+    exit(EXIT_SUCCESS);
+  }
+  if (!kernel_file) {
+    if (optind >= argc) die("LinLoader must be given a kernel");
+    kernel_file = argv[optind++];
+  }
+  j = 0;
+  for(i = optind; i < argc; i++) {
+    if (!memcmp(argv[i], "initrd=", 7)) {
+      if (initrd_file) die("Duplicate initrd");
+      initrd_file = argv[i] + 7;
+    } else {
+      commandline[j++] = ' ';
+      strcpy(commandline + j, argv[i]);
+      j += strlen(commandline + j);
+    }
+  }
+  if (extra) {
+    if (fputs(j ? "Extra kernel arguments: " : "Kernel arguments: ", stdout) == EOF) _kernel_raise_error(_kernel_last_oserror());
+    if (!fgets(commandline + j, 256 - j, stdin)) _kernel_raise_error(_kernel_last_oserror());
+    if (banner && !clear) putchar('\n');
+  }
+
+  id_sys();
+  if (clear) osscreenmode_select(osscreenmode_current()); /* Clear screen */
+  if (banner) printf("LinLoader 0.20  © 1999 Timothy Baldwin\n"
+                     "Parts © Russell King, Matthias Seifert and others\n\n"
+                     "System : %s\n\n", id_sys_name);
+
+  boot_linux(kernel_file, initrd_file, commandline, noboot);
+  if (!noboot) die("Boot failed for unknown reason");
+  return EXIT_SUCCESS;
+}

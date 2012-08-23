@@ -1,0 +1,39 @@
+/*
+ LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Copyright (C) 1999  Timothy Baldwin
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/* $Id$ */
+
+#ifndef RAM_H
+#define RAM_H
+
+#include "types.h"
+
+#define PAGE_SIZE 0x1000
+#define bank1_base 0x10000
+#define bank2_base 0x18000
+
+extern unsigned bank1_pages, bank2_pages;
+extern int vram_pages, dram_pages, dram_layout_is_riscpc;
+
+extern unsigned find_dram(byte *table, unsigned base);
+extern void check_ram(void);
+unsigned r2p(unsigned x);
+unsigned p2r(unsigned x);
+
+#endif
