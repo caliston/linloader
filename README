@@ -19,10 +19,18 @@ pass values to ARM Linux accordingly.
 Versions
 ~~~~~~~~
 
+*** 2012 note: LinLoader is currently unmaintained ***
+
+Versions:
+
+0.20, 0.30, 0.35: Original Risc PC version
+
+0.35a: Patched for Bush STB/RiscStation by Vincent Sanders
 Linloader is now maintained by Vincent Sanders, taking the original
 0.35 version and updating it for RiscStation support, as well
 as improving comments.
 
+0.40: Iyonix support added by Peter Naulls
 Peter Naulls added support for Castle's Iyonix, and cleaned the
 code up, and added more comments.
 
@@ -36,12 +44,11 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 Availability
 ~~~~~~~~~~~~
-The latest version is available from netwinder.org CVS for those with
-access.
-
 The original Linloader can be downloaded from :
  http://www.reinhouse.freeserve.co.uk/riscos/linloader/
 
 A later modified version is available from
  http://www.kyllikki.org/software/ro-ports/releases/
 
+Source code resides at:
+ https://github.com/caliston/linloader
