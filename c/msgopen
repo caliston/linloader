@@ -1,0 +1,15 @@
+/* $Id: msgopen.c,v 1.1 1999/08/11 18:22:49 uid1 Exp $ */
+
+#include "internal.h"
+
+messagetrans_control_block lll_msgs;
+
+void lll_load_msgs(void) {
+  int size;
+  static int loaded = 0;
+  if (loaded) return;
+  messagetrans_file_info(lll_message_file, 0, &size);
+  messagetrans_open_file(&lll_msgs, lll_message_file, lll_xmalloc(size));
+  if (!lll_name) lll_name = lll_getmsg("lll_name");
+  loaded = 1;
+}

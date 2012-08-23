@@ -17,7 +17,7 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: main.c,v 1.6 1999/07/20 15:01:34 uid1 Exp $ */
+/* $Id: main.c,v 1.8 1999/08/11 20:18:46 uid1 Exp $ */
 
 #include <stdio.h>
 #include <signal.h>
@@ -30,48 +30,14 @@
 #include "osbyte.h"
 
 #include "getopt.h"
-#include "internal.h"
+
+#define LLL_USE_OSLIB
 #include "lll.h"
 
-const char help[] =
-  "Linloader boots Linux/ARM. The following options are supported:\n"
-  "\n"
-  "  -k, --kernel           RISC OS filename of the kernel to be booted, if this\n"
-  "                          option is omitted the first non-option argument is\n"
-  "                          used as the kernel filename.\n"
-  "  -i, --initrd           RISC OS filename of the initial ram disc (initrd) to\n"
-  "                          be loaded, alternatively a initial ram disc may be\n"
-  "                          specified by a argument beginning \"initrd=\".\n"
-  "  -c, --no-clear         Do not clear the screen.\n"
-  "  -q, --quiet            Do not display banner.\n"
-  "  -e, --extra-arguments  Prompt for extra kernel arguments before clearing the\n"
-  "                          screen or displaying the banner.\n"
-  "      --dry-run          Do a dry run, do not actually boot the kernel.\n"
-  "  -h, --help             Show this help text.\n"
-  "      --credits          Show credits.\n"
-  "\n"
-  "Note that Linloader does not (yet) shut down the desktop so all unsaved\n"
-  "work will be lost. Linloader is © 1999 Timothy Baldwin and others, and is\n"
-  "released under the GNU GPL.";
-
-const char credits[] =
-  "Many thanks to Matthias Seifert for some memory controller identification\n"
-  "code, Darren Salt for promptly fixing a bug in AS, Jonathan Coxhead and others\n"
-  "for OSLib and the FSF for GNU getopt. Linloader contains code copyright\n"
-  "Matthias Seifert, Russell King and others.";
+char *lll_message_file;
 
 void signal_handler(int n) {
   _kernel_raise_error(_kernel_last_oserror());
-}
-
-void die(char *s, ...) {
-  _kernel_oserror e;
-  va_list ap;
-  va_start(ap, s);
-  vsprintf(e.errmess, s, ap);
-  va_end(ap);
-  e.errnum = 1;
-  _kernel_raise_error(&e);
 }
 
 int in(char c, char const *s) {
@@ -92,7 +58,9 @@ int main(int argc, char **argv) {
     __heap_checking_on_all_deallocates(1);
   }
 #endif
+  lll_message_file = argv[--argc];
   signal(SIGOSERROR, signal_handler);
+  lll_load_msgs();
   do {
     static const struct option long_options[] = {
       {"kernel", 1, 0, 'k'},
@@ -103,15 +71,16 @@ int main(int argc, char **argv) {
       {"extra-arguments", 0, 0, 'e'},
       {"help", 0, 0, 'h'},
       {"credits", 0, 0, 1},
+      {"debug", 0, 0, 2},
       {0, 0, 0, 0}};
     c = getopt_long(argc, argv, "W;k:i:cqeh", long_options, 0);
     switch(c) {
       case 'k':
-        if (kernel_file) die("Duplicate kernel");
+        if (kernel_file) lll_die("\0\0\0\0lll_multikernel");
         kernel_file = optarg;
         break;
       case 'i':
-        if (initrd_file) die("Duplicate initrd");
+        if (initrd_file) lll_die("\0\0\0\0lll_multird");
         initrd_file = optarg;
         break;
       case 'c':
@@ -127,26 +96,31 @@ int main(int argc, char **argv) {
         extra = 1;
         break;
       case 'h':
-        show_text = help;
+        show_text = "lll_help";
         break;
       case 1:
-        show_text = credits;
+        show_text = "lll_credits";
+        break;
+      case 2:
+        lll_debug = 1;
         break;
     }
   } while(c != -1);
   if (show_text) {
-    if(puts(show_text) == EOF) _kernel_raise_error(_kernel_last_oserror());
+    char s[2048];
+    messagetrans_gs_lookup(&lll_msgs, show_text, s, 2048, 0, 0, 0, 0);
+    if(puts(s) == EOF) _kernel_raise_error(_kernel_last_oserror());
     exit(EXIT_SUCCESS);
   }
   if (!kernel_file) {
-    if (optind >= argc) die("Linloader must be given a kernel");
+    if (optind >= argc) lll_die("\0\0\0\0lll_nokernel");
     kernel_file = argv[optind++];
   }
   commandline[0] = 0;
   j = 0;
   for(i = optind; i < argc; i++) {
     if (!memcmp(argv[i], "initrd=", 7)) {
-      if (initrd_file) die("Duplicate initrd");
+      if (initrd_file) lll_die("\0\0\0\0lll_multird");
       initrd_file = argv[i] + 7;
     } else {
       commandline[j++] = ' ';
@@ -163,18 +137,18 @@ int main(int argc, char **argv) {
   lll_id_sys();
   if (clear) osscreenmode_select(osscreenmode_current()); /* Clear screen */
   if (banner) {
-    os_write0("Linloader 0.30  © 1999 Timothy Baldwin\r\n"
-              "Parts © Russell King, Matthias Seifert and others\r\n\n"
-              "System : ");
-    os_write0(lll_sys_name);
-    os_new_line();
-    os_new_line();
+    char s[1024];
+    messagetrans_gs_lookup(&lll_msgs, "lll_banner", s, 1024, lll_version, lll_sys_name, 0, 0);
+    os_write0(s);
   }
 
   lll_boot_gzip(kernel_file, initrd_file, commandline, 0, 0);
   if (lll_noboot) {
-    os_write0("Press any key\r\n");
+    char s[128];
+    messagetrans_gs_lookup(&lll_msgs, "lll_anykey", s, 128, 0, 0, 0, 0);
+    os_write0(s);
+    os_new_line();
     _kernel_osrdch();
-  } else die("Boot failed for unknown reason");
+  } else lll_die("\0\0\0\0lll_bootfail");
   return EXIT_SUCCESS;
 }

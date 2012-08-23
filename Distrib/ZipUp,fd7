@@ -16,25 +16,21 @@
 | along with this program; if not, write to the Free Software
 | Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-| $Id: ZipUp,fd7,v 1.3 1999/07/25 19:18:57 uid1 Exp $
+| $Id: ZipUp,fd7,v 1.4 1999/08/11 20:28:37 uid1 Exp $
 
 dir <obey$dir>.^
 
 echo Compling...
 amu dist
 
-echo Archiving llsrc-0/30/zip...
-remove llsrc-0/30/zip
-zip -r9D llsrc-0/30/zip README Docs o.asm o.mcid o.fixup c h s Makefile Distrib cat2html -x *CVS/*
-zipnote -w llsrc-0/30/zip < Distrib.src
+echo Archiving llsrc-0/35/zip...
+remove llsrc-0/35/zip
+zip -r9D llsrc-0/35/zip README Docs o.asm o.mcid o.fixup c h s Makefile Distrib cat2html -x *CVS/*
+zipnote -w llsrc-0/35/zip < Distrib.src
 
-echo Archiving llbin-0/30/zip...
-remove llbin-0/30/zip
-zip -r9D llbin-0/30/zip Distrib.bin_README Linloader Docs -x Docs/source* *CVS/*
-zipnote -w llbin-0/30/zip < Distrib.bin
-
-|echo Archiving lllib-0/30/zip...
-|remove lllib-0/30/zip
-|zip -9 -r lllib-0/30/zip l Docs h.id_sys h.boot
+echo Archiving llbin-0/35/zip...
+remove llbin-0/35/zip
+zip -r9D llbin-0/35/zip Distrib.bin_README Linloader Docs -x Docs/source* *CVS/*
+zipnote -w llbin-0/35/zip < Distrib.bin
 
 echo Finished

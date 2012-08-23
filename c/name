@@ -1,0 +1,3 @@
+/* $Id: name.c,v 1.1 1999/08/11 18:22:55 uid1 Exp $ */
+
+char *lll_name;

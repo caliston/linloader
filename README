@@ -1,4 +1,4 @@
-Linloader 0.30 (Source Distribution)
+Linloader 0.35 (Source Distribution)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Linloader is RISC OS command line program for booting Linux on Acorn
 RiscPCs (and hopefully later RISC OS systems), it does not provide a boot

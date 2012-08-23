@@ -4,6 +4,6 @@
 void *lll_xmalloc(size_t size) {
   void *memory;
   memory = malloc(size);
-  if (!memory) lll_die("Out of memory (malloc failed)");
+  if (!memory) lll_die("\0\0\0\0lll_nomem:Out of memory (malloc failed)");
   return memory;
 }

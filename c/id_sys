@@ -17,14 +17,16 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: id_sys.c,v 1.4 1999/07/20 15:01:05 uid1 Exp $ */
+/* $Id: id_sys.c,v 1.6 1999/08/11 20:18:30 uid1 Exp $ */
 
 #include "internal.h"
+#include <stdio.h>
 
 const int lll_sys_to_linux[] = {-1, -1, -1, 1, 1, 1};
 
 unsigned lll_sys_id;
-char *lll_sys_name = "Unrecognised";
+char *lll_sys_name = 0;
+int lll_debug;
 
 void lll_id_sys(void) {
   unsigned mc_id, proc_id, proc_arch;
@@ -39,7 +41,7 @@ void lll_id_sys(void) {
     lll_sys_name = "Archimedies/A5000";
   }
   proc_id = lll_get_proc_id();
-  dram_layout_is_riscpc = lll_rpc_bank1_pages + lll_rpc_bank2_pages == lll_pages;
+  dram_layout_is_riscpc = lll_rpc_bank[0] + lll_rpc_bank[1] + lll_rpc_bank[2] + lll_rpc_bank[3] == lll_pages;
   proc_arch = 3;
   if (mc_id == 0x5B980001 && dram_layout_is_riscpc && lll_rpc_vram_pages == 0) {
     lll_sys_name = "A7000";
@@ -64,4 +66,6 @@ void lll_id_sys(void) {
       lll_sys_id = 3;
     }
   }
+  if (!lll_sys_name) lll_sys_name = lll_getmsg("lll_unrec");
+  if (lll_debug) fprintf(stderr, "lll_sys_name = %s\nlll_sys_id = %i\ndram_layout_is_riscpc = %i\nlll_rpc_vram_pages = %i\nlll_pages = %i\nlll_rpc_bank[] = {%i, %i, %i, %i}\nproc_id = 0x%X\nmc_id = 0x%X\n", lll_sys_name, lll_sys_id, dram_layout_is_riscpc, lll_rpc_vram_pages, lll_pages, lll_rpc_bank[0], lll_rpc_bank[1], lll_rpc_bank[2], lll_rpc_bank[3], proc_id, mc_id);
 }

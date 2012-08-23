@@ -17,7 +17,7 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: params.c,v 1.2 1999/07/20 15:01:49 uid1 Exp $ */
+/* $Id: params.c,v 1.4 1999/08/11 20:18:53 uid1 Exp $ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -41,12 +41,14 @@ void lll_setup_params(char const *commandline) {
   }};
   int values[4];
 
-  p.u1.s.pages_in_bank[0] = lll_rpc_bank1_pages;
-  p.u1.s.pages_in_bank[2] = lll_rpc_bank2_pages;
+  p.u1.s.pages_in_bank[0] = lll_rpc_bank[0];
+  p.u1.s.pages_in_bank[1] = lll_rpc_bank[1];
+  p.u1.s.pages_in_bank[2] = lll_rpc_bank[2];
+  p.u1.s.pages_in_bank[3] = lll_rpc_bank[3];
   p.u1.s.nr_pages = lll_pages + lll_rpc_vram_pages;
   p.u1.s.pages_in_vram = lll_rpc_vram_pages;
 
-  if (strlen(commandline) + 1 >= sizeof(p.commandline)) lll_die("Kernel command line to long (maxinum length %i)", sizeof(p.commandline) - 1);
+  if (strlen(commandline) + 1 >= sizeof(p.commandline)) lll_die("\0\0\0\0lll_toolong");
   strcpy(p.commandline, commandline);
   p.u1.s.flags = FLAG_READONLY;
   p.u1.s.page_size = PAGE_SIZE;

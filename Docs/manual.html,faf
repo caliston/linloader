@@ -1,12 +1,12 @@
-<html><head><title>Linloader 0.30 instructions</title></head><body>
-<!-- $Id: manual.html,faf,v 1.3 1999/07/25 19:19:28 uid1 Exp $ -->
-<h1>Linloader 0.30</h1>
+<html><head><title>Linloader 0.35 instructions</title></head><body>
+<!-- $Id: manual.html,faf,v 1.5 1999/08/11 20:29:12 uid1 Exp $ -->
+<h1>Linloader 0.35</h1>
 <h2>Introduction</h2>
 <p>Linloader is RISC OS command line program for booting Linux on Acorn
 RiscPCs (and hopefully later RISC OS systems), it does not provide a boot
 menu, or shut down the desktop.
 It does kowever boot gzipped kernels. Linloader is released under the
-<a href="gpl.html">GNU GPL</a> and is &copy; Timothy Baldwin and <a href="#credits">others.</a></p>
+<a href="GPL.txt">GNU GPL</a> and is &copy; Timothy Baldwin and <a href="#credits">others.</a></p>
 <p>Note that some links only work in the source distribution.</p>
 <h2>Disclaimer</h2>
 <p>Linloader is distributed in the hope that it will be useful,

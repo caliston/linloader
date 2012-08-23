@@ -17,7 +17,7 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: init.c,v 1.3 1999/07/20 15:01:13 uid1 Exp $ */
+/* $Id: init.c,v 1.4 1999/08/11 18:22:14 uid1 Exp $ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -55,10 +55,11 @@ void lll_init(void) {
   os_page_block *pages;
   size_t fixup_table_size, fixup_size, fixup_code_size, da_handler_size, initrd_size_page_aligned, da_size;
   byte *fixup_table, *fixup;
-  if (!lll_noboot && taskwindowtaskinfo_window_task()) lll_die("Linloader can't run in a TaskWindow");
+  lll_load_msgs();
+  if (!lll_noboot && taskwindowtaskinfo_window_task()) lll_die("\0\0\0\0lll_NoTaskW");
   lll_id_sys();
-  if (lll_sys_id == 1 || lll_sys_id == 2) lll_die("Linloader does not work on Archimedes or A5000-like systems, to boot Linux on these systems you must use !Linux, which is available from http://www.arm.uk.linux.org/~rmk/armlinux.html");
-  if (lll_sys_to_linux[lll_sys_id] == -1) lll_die("Sorry, Linloader does not support this system, prehaps you should consider adding support yourself and sending patches to tim@reinhouse.freeserve.co.uk");
+  if (lll_sys_id == 1 || lll_sys_id == 2) lll_die("\0\0\0\0lll_Arc");
+  if (lll_sys_to_linux[lll_sys_id] == -1) lll_die("\0\0\0\0lll_uksys");
   atexit(lll_free_mem);
 
   da_handler_size = &lll_da_handler_end - &lll_da_handler_start;

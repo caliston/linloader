@@ -1,13 +1,5 @@
-#include "kernel.h"
-#include <stdarg.h>
-#include <stdio.h>
+#include "internal.h"
 
-void lll_die(char const *s, ...) {
-  _kernel_oserror e;
-  va_list ap;
-  va_start(ap, s);
-  vsprintf(e.errmess, s, ap);
-  va_end(ap);
-  e.errnum = 1;
-  _kernel_raise_error(&e);
+void lll_die(char const *s) {
+  messagetrans_error_lookup((os_error *)s, &lll_msgs, 0, 0, lll_name, 0, 0, 0);
 }

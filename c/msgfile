@@ -1,0 +1,3 @@
+/* $Id: msgfile.c,v 1.1 1999/08/11 18:22:38 uid1 Exp $ */
+
+char *lll_message_file = "Messages.M1";

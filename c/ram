@@ -17,7 +17,7 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: ram.c,v 1.4 1999/07/20 15:01:57 uid1 Exp $ */
+/* $Id: ram.c,v 1.5 1999/08/11 20:18:57 uid1 Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,13 +25,12 @@
 #include "os.h"
 #include "internal.h"
 
-unsigned lll_rpc_vram_pages, lll_rpc_bank1_pages, lll_rpc_bank2_pages, lll_pages;
+unsigned lll_rpc_vram_pages, lll_rpc_bank[4], lll_pages;
 struct da_handler_control lll_da_ctrl;
 
-static unsigned find_ram(unsigned s, unsigned l) {
-  unsigned p1, p2, i = s;
-  p2 = lll_da_ctrl.page_to_physical[s];
-  do {
+static unsigned find_ram(unsigned s, unsigned l, unsigned p2) {
+  unsigned p1, i = s;
+  if (p2 == lll_da_ctrl.page_to_physical[s]) do {
     p1 = p2;
     i++;
     l--;
@@ -59,6 +58,8 @@ void lll_check_ram(void) {
     if ((lll_da_ctrl.arrangement_table[i] & 0x70) == 0x10) lll_da_ctrl.page_to_physical[j++] = (i * 2 + 1) * PAGE_SIZE;
   }
   assert(j == lll_pages);
-  lll_rpc_bank1_pages = find_ram(0, 0x10000);
-  lll_rpc_bank2_pages = find_ram(lll_rpc_bank1_pages, 0x10000);
+  i = lll_rpc_bank[0] = find_ram(0, 0x8000, 0x10000000);
+  i += lll_rpc_bank[1] = find_ram(i, 0x8000, 0x14000000);
+  i += lll_rpc_bank[2] = find_ram(i, 0x8000, 0x18000000);
+  lll_rpc_bank[3] = find_ram(i, 0x8000, 0x1C000000);
 }

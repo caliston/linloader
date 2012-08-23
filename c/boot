@@ -17,7 +17,7 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id: boot.c,v 1.6 1999/07/25 19:17:05 uid1 Exp $ */
+/* $Id: boot.c,v 1.8 1999/08/11 20:18:24 uid1 Exp $ */
 
 
 #include "osfscontrol.h"
@@ -25,13 +25,15 @@
 
 #include "internal.h"
 
+extern void lll_mmu_off(unsigned fixup, unsigned archid, unsigned kernel, int page_size);
+
 unsigned lll_fixup_physical_addr;
 
 void lll_start_linux(void) {
   if (lll_noboot) return;
+  xos_cli("%rc5pc off");
   osfscontrol_shutdown();
   os_remove_cursors();
-  xos_cli("%rc5pc off");
   os_cli("%cache off");
   service_pre_reset(); /* Reset hardware */
   lll_mmu_off(lll_fixup_physical_addr, lll_sys_to_linux[lll_sys_id], 0x10008000, PAGE_SIZE);

@@ -1,0 +1,9 @@
+/* $Id: msgget.c,v 1.1 1999/08/11 18:22:43 uid1 Exp $ */
+
+#include "internal.h"
+
+char *lll_getmsg(char const *tag) {
+  char s[1024];
+  messagetrans_gs_lookup(&lll_msgs, tag, s, 128, 0, 0, 0, 0);
+  return lll_strdup(s);
+}
