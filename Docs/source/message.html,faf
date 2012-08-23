@@ -1,5 +1,5 @@
 <html><head><title>Matthias Seifert</title></head><body>
-<p>The following is a <a href="message.txt">article</a> posted to <a href="news:comp.sys.acorn.programmer">comp.sys.acorn.programmer</a> by <a href="http://www.deutschlandwetter.de">Matthias Seifert</a> (my markup, headers trimmed) which describes the memory controller identification code <a href="../../s/mcid">used</a> by LinLoader to assist in machine identification.</p>
+<p>The following is a <a href="message.txt">article</a> posted to <a href="news:comp.sys.acorn.programmer">comp.sys.acorn.programmer</a> by <a href="http://www.deutschlandwetter.de">Matthias Seifert</a> (my markup, headers trimmed) which describes the memory controller identification code <a href="../../s/mcid">used</a> by Linloader to assist in machine identification.</p>
 <pre>
 From: <a href="mailto:M.Seifert@t-online.de">M.Seifert@t-online.de</a> (Matthias Seifert)
 Newsgroups: <a href="news:comp.sys.acorn.programmer">comp.sys.acorn.programmer</a>

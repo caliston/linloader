@@ -1,5 +1,5 @@
 /*
- LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Linloader, Boots Linux/ARM on RISC OS based systems.
  Copyright (C) 1999  Timothy Baldwin
 
  This program is free software; you can redistribute it and/or modify
@@ -17,41 +17,48 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id$ */
+/* $Id: ram.c,v 1.4 1999/07/20 15:01:57 uid1 Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include "os.h"
-#include "ram.h"
+#include "internal.h"
 
-unsigned bank1_pages, bank2_pages;
-int vram_pages, dram_pages, dram_layout_is_riscpc;
+unsigned lll_rpc_vram_pages, lll_rpc_bank1_pages, lll_rpc_bank2_pages, lll_pages;
+struct da_handler_control lll_da_ctrl;
 
-unsigned find_dram(byte *table, unsigned base) {
-  unsigned count = 0;
-  while(count < 0x8000 && ((table[(base + count) / 2] & 7) == 1)) count += 128;
-  return count;
+static unsigned find_ram(unsigned s, unsigned l) {
+  unsigned p1, p2, i = s;
+  p2 = lll_da_ctrl.page_to_physical[s];
+  do {
+    p1 = p2;
+    i++;
+    l--;
+    p2 = lll_da_ctrl.page_to_physical[i];
+  } while(l && p2 == p1 + PAGE_SIZE);
+  return i - s;
 }
 
-void check_ram(void) {
-  byte *table;
-  int page_size, page_size2;
-  table = malloc(osmemory_read_arrangement_table_size(NULL));
-  osmemory_read_arrangement_table(table);
-  bank1_pages = find_dram(table, bank1_base);
-  bank2_pages = find_dram(table, bank2_base);
-  osmemory_read_size(osmemory_TYPE_DRAM << osmemory_TYPE_SHIFT, &dram_pages, (int *)&page_size);
-  osmemory_read_size(osmemory_TYPE_VRAM << osmemory_TYPE_SHIFT, &vram_pages, (int *)&page_size2);
+void lll_check_ram(void) {
+  int page_size;
+  unsigned i, j = 0;
+  size_t arrangement_table_size  = osmemory_read_arrangement_table_size(&page_size);
   assert(page_size == PAGE_SIZE);
-  assert(page_size == page_size2);
-  dram_layout_is_riscpc = bank1_pages + bank2_pages == dram_pages;
-}
-
-unsigned p2r(unsigned x) {
-  return x < bank2_base ? x - bank1_base : x + bank1_pages - bank2_base;
-}
-
-unsigned r2p(unsigned x) {
-  return x > bank1_pages ? x + bank2_base - bank1_pages : x + bank1_base;
+  if (lll_da_ctrl.page_to_physical) return;
+  if (!lll_da_ctrl.arrangement_table) lll_da_ctrl.arrangement_table = lll_xmalloc(arrangement_table_size);
+  osmemory_read_arrangement_table(lll_da_ctrl.arrangement_table);
+  osmemory_read_size(osmemory_TYPE_DRAM << osmemory_TYPE_SHIFT, (int *)&lll_pages, (int *)&page_size);
+  assert(page_size == PAGE_SIZE);
+  assert(lll_pages != 0);
+  osmemory_read_size(osmemory_TYPE_VRAM << osmemory_TYPE_SHIFT, (int *)&lll_rpc_vram_pages, (int *)&page_size);
+  assert(page_size == PAGE_SIZE);
+  lll_da_ctrl.page_to_physical = lll_xmalloc((lll_pages + 1) * 4);
+  for(i = 0; i < arrangement_table_size && j <= lll_pages; i++) {
+    if ((lll_da_ctrl.arrangement_table[i] & 0x07) == 0x01) lll_da_ctrl.page_to_physical[j++] = i * 2 * PAGE_SIZE;
+    if ((lll_da_ctrl.arrangement_table[i] & 0x70) == 0x10) lll_da_ctrl.page_to_physical[j++] = (i * 2 + 1) * PAGE_SIZE;
+  }
+  assert(j == lll_pages);
+  lll_rpc_bank1_pages = find_ram(0, 0x10000);
+  lll_rpc_bank2_pages = find_ram(lll_rpc_bank1_pages, 0x10000);
 }

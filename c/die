@@ -1,0 +1,13 @@
+#include "kernel.h"
+#include <stdarg.h>
+#include <stdio.h>
+
+void lll_die(char const *s, ...) {
+  _kernel_oserror e;
+  va_list ap;
+  va_start(ap, s);
+  vsprintf(e.errmess, s, ap);
+  va_end(ap);
+  e.errnum = 1;
+  _kernel_raise_error(&e);
+}

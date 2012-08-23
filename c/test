@@ -1,0 +1,47 @@
+#include "os.h"
+#include "osmodule.h"
+#include "internal.h"
+#include <stdlib.h>
+#include <string.h>
+
+os_dynamic_area_no lll_dynamic_area;
+static byte *da_handler;
+byte *lll_initrd, *lll_kernel, *lll_params;
+
+void lll_free_mem(void) {
+  if (lll_dynamic_area) {
+    os_writec('A');
+    osdynamicarea_delete(lll_dynamic_area);
+    os_writec('B');
+    lll_dynamic_area = 0;
+  }
+  if (da_handler) {
+    os_writec('C');
+    osmodule_free(da_handler);
+    os_writec('D');
+    da_handler = 0;
+  }
+}
+
+int main() {
+  extern byte lll_da_handler_end, lll_da_handler_start;
+  size_t da_handler_size, initrd_size_page_aligned, da_size;
+  byte *fixup_table;
+  lll_check_ram();
+
+  da_handler_size = &lll_da_handler_end - &lll_da_handler_start;
+  da_handler = osmodule_alloc(da_handler_size);
+  memcpy(da_handler, &lll_da_handler_start, da_handler_size);
+  xos_synchronise_code_areas(1, da_handler, da_handler + da_handler_size);
+  fixup_table = lll_xmalloc(FIXUP_SIZE);
+  da_ctrl.fixup = fixup_table;
+  memset(fixup_table, 0, FIXUP_SIZE);
+
+  da_ctrl.reserve = lll_pages;
+  da_ctrl.target = 0;
+  da_size = 4096 * 1024;
+  initrd_size_page_aligned = 2048 * 1024;
+  lll_dynamic_area = osdynamicarea_create(osdynamicarea_ALLOCATE_AREA, initrd_size_page_aligned, osdynamicarea_ALLOCATE_BASE, 0x180, da_size + da_size / PAGE_SIZE * 8 + PAGE_SIZE * 2, da_handler, &da_ctrl, "Linloader", &lll_initrd, 0);
+  lll_free_mem();
+  return 0;
+}

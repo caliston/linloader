@@ -1,5 +1,5 @@
 /*
- LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Linloader, Boots Linux/ARM on RISC OS based systems.
  Copyright (C) 1999  Timothy Baldwin
 
  This program is free software; you can redistribute it and/or modify
@@ -17,23 +17,24 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id$ */
+/* $Id: main.c,v 1.6 1999/07/20 15:01:34 uid1 Exp $ */
 
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "kernel.h"
 
 #include "os.h"
 #include "osbyte.h"
 
 #include "getopt.h"
-#include "boot.h"
-#include "id_sys.h"
+#include "internal.h"
+#include "lll.h"
 
 const char help[] =
-  "LinLoader boots Linux/ARM. The following options are supported:\n"
+  "Linloader boots Linux/ARM. The following options are supported:\n"
   "\n"
   "  -k, --kernel           RISC OS filename of the kernel to be booted, if this\n"
   "                          option is omitted the first non-option argument is\n"
@@ -49,18 +50,28 @@ const char help[] =
   "  -h, --help             Show this help text.\n"
   "      --credits          Show credits.\n"
   "\n"
-  "Note that LinLoader does not (yet) shut down the desktop so all unsaved\n"
-  "work will be lost. LinLoader is © 1999 Timothy Baldwin and others, and is\n"
+  "Note that Linloader does not (yet) shut down the desktop so all unsaved\n"
+  "work will be lost. Linloader is © 1999 Timothy Baldwin and others, and is\n"
   "released under the GNU GPL.";
 
 const char credits[] =
   "Many thanks to Matthias Seifert for some memory controller identification\n"
   "code, Darren Salt for promptly fixing a bug in AS, Jonathan Coxhead and others\n"
-  "for OSLib and the FSF for GNU getopt. LinLoader contains code copyright\n"
+  "for OSLib and the FSF for GNU getopt. Linloader contains code copyright\n"
   "Matthias Seifert, Russell King and others.";
 
 void signal_handler(int n) {
   _kernel_raise_error(_kernel_last_oserror());
+}
+
+void die(char *s, ...) {
+  _kernel_oserror e;
+  va_list ap;
+  va_start(ap, s);
+  vsprintf(e.errmess, s, ap);
+  va_end(ap);
+  e.errnum = 1;
+  _kernel_raise_error(&e);
 }
 
 int in(char c, char const *s) {
@@ -72,7 +83,15 @@ int main(int argc, char **argv) {
   char commandline[2048];
   char *initrd_file = 0, *kernel_file = 0;
   const char *show_text = 0;
-  int c, clear = 1, banner = 1, i, j, noboot = 0, extra = 0;
+  int c, clear = 1, banner = 1, i, j, extra = 0;
+#ifdef CHECK_MEM
+  {
+    extern void __heap_checking_on_all_allocates(int on);
+    extern void __heap_checking_on_all_deallocates(int on);
+    __heap_checking_on_all_allocates(1);
+    __heap_checking_on_all_deallocates(1);
+  }
+#endif
   signal(SIGOSERROR, signal_handler);
   do {
     static const struct option long_options[] = {
@@ -102,7 +121,7 @@ int main(int argc, char **argv) {
         banner = 0;
         break;
       case 'd':
-        noboot = 1;
+        lll_noboot = 1;
         break;
       case 'e':
         extra = 1;
@@ -120,9 +139,10 @@ int main(int argc, char **argv) {
     exit(EXIT_SUCCESS);
   }
   if (!kernel_file) {
-    if (optind >= argc) die("LinLoader must be given a kernel");
+    if (optind >= argc) die("Linloader must be given a kernel");
     kernel_file = argv[optind++];
   }
+  commandline[0] = 0;
   j = 0;
   for(i = optind; i < argc; i++) {
     if (!memcmp(argv[i], "initrd=", 7)) {
@@ -135,18 +155,26 @@ int main(int argc, char **argv) {
     }
   }
   if (extra) {
-    if (fputs(j ? "Extra kernel arguments: " : "Kernel arguments: ", stdout) == EOF) _kernel_raise_error(_kernel_last_oserror());
-    if (!fgets(commandline + j, 256 - j, stdin)) _kernel_raise_error(_kernel_last_oserror());
-    if (banner && !clear) putchar('\n');
+    os_write0(j ? "Extra kernel arguments: " : "Kernel arguments: ");
+    os_read_line(commandline + j, 256 - j, 32, 256, 0);
+    if (!clear) os_new_line();
   }
 
-  id_sys();
+  lll_id_sys();
   if (clear) osscreenmode_select(osscreenmode_current()); /* Clear screen */
-  if (banner) printf("LinLoader 0.20  © 1999 Timothy Baldwin\n"
-                     "Parts © Russell King, Matthias Seifert and others\n\n"
-                     "System : %s\n\n", id_sys_name);
+  if (banner) {
+    os_write0("Linloader 0.30  © 1999 Timothy Baldwin\r\n"
+              "Parts © Russell King, Matthias Seifert and others\r\n\n"
+              "System : ");
+    os_write0(lll_sys_name);
+    os_new_line();
+    os_new_line();
+  }
 
-  boot_linux(kernel_file, initrd_file, commandline, noboot);
-  if (!noboot) die("Boot failed for unknown reason");
+  lll_boot_gzip(kernel_file, initrd_file, commandline, 0, 0);
+  if (lll_noboot) {
+    os_write0("Press any key\r\n");
+    _kernel_osrdch();
+  } else die("Boot failed for unknown reason");
   return EXIT_SUCCESS;
 }

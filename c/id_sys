@@ -1,5 +1,5 @@
 /*
- LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Linloader, Boots Linux/ARM on RISC OS based systems.
  Copyright (C) 1999  Timothy Baldwin
 
  This program is free software; you can redistribute it and/or modify
@@ -17,52 +17,51 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id$ */
+/* $Id: id_sys.c,v 1.4 1999/07/20 15:01:05 uid1 Exp $ */
 
-#include "ram.h"
+#include "internal.h"
 
-extern unsigned id_sys_get_proc_id(void);
-extern unsigned id_sys_get_mc_id(void);
+const int lll_sys_to_linux[] = {-1, -1, -1, 1, 1, 1};
 
-const int sys_to_linux[] = {-1, -1, -1, 1, 1, 1};
+unsigned lll_sys_id;
+char *lll_sys_name = "Unrecognised";
 
-unsigned id_sys_id;
-char *id_sys_name = "Unrecognised";
-
-void id_sys(void) {
+void lll_id_sys(void) {
   unsigned mc_id, proc_id, proc_arch;
-  if (id_sys_id) return;
-  if (!dram_pages) check_ram();
-  proc_id = id_sys_get_proc_id();
-  mc_id = id_sys_get_mc_id();
-  id_sys_id = 0;
+  int dram_layout_is_riscpc;
+  if (lll_sys_id) return;
+  if (!lll_pages) lll_check_ram();
+  mc_id = lll_get_mc_id();
+  lll_sys_id = 0;
   if (mc_id == 0) {
     proc_arch = 2;
-    id_sys_id = 1;
-    id_sys_name = "Archimedies/A5000";
+    lll_sys_id = 1;
+    lll_sys_name = "Archimedies/A5000";
   }
+  proc_id = lll_get_proc_id();
+  dram_layout_is_riscpc = lll_rpc_bank1_pages + lll_rpc_bank2_pages == lll_pages;
   proc_arch = 3;
-  if (mc_id == 0x5B980001 && dram_layout_is_riscpc) {
-    id_sys_name = "A7000";
-    id_sys_id = 4;
+  if (mc_id == 0x5B980001 && dram_layout_is_riscpc && lll_rpc_vram_pages == 0) {
+    lll_sys_name = "A7000";
+    lll_sys_id = 4;
   }
-  else if (mc_id == 0xAA7C0001 && dram_layout_is_riscpc) {
-    id_sys_name = "A7000+";
-    id_sys_id = 5;
+  else if (mc_id == 0xAA7C0001 && dram_layout_is_riscpc && lll_rpc_vram_pages == 0) {
+    lll_sys_name = "A7000+";
+    lll_sys_id = 5;
   }
-  else if (mc_id == 0xD4E70001 && dram_layout_is_riscpc) {
+  else if (mc_id == 0xD4E70001 && dram_layout_is_riscpc && (lll_rpc_vram_pages == 0 || lll_rpc_vram_pages == 0x100 || lll_rpc_vram_pages == 0x200)) {
     if ((proc_id & 0xFFFFFFF0) == 0x4401A100) {
-      id_sys_name = "StrongARM Risc PC";
+      lll_sys_name = "StrongARM Risc PC";
       proc_arch = 4;
-      id_sys_id = 3;
+      lll_sys_id = 3;
     }
     else if ((proc_id & 0xFFF8F000) == 0x41007000) {
-      id_sys_name = "Risc PC 700";
-      id_sys_id = 3;
+      lll_sys_name = "Risc PC 700";
+      lll_sys_id = 3;
     }
     else if ((proc_id & 0xFFFFFF00) == 0x41560600) {
-      id_sys_name = "Risc PC 600";
-      id_sys_id = 3;
+      lll_sys_name = "Risc PC 600";
+      lll_sys_id = 3;
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
- LinLoader, Boots Linux/ARM on RISC OS based systems.
+ Linloader, Boots Linux/ARM on RISC OS based systems.
  Copyright (C) 1999  Timothy Baldwin
 
  This program is free software; you can redistribute it and/or modify
@@ -17,12 +17,15 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* $Id$ */
+/* $Id: lll.h,v 1.2 1999/07/20 15:01:29 uid1 Exp $ */
 
-#ifndef BOOT_H
-#define BOOT_H
+#ifndef LLL_H
+#define LLL_H
 
-extern void die(char *s, ...);
-extern void boot_linux(char *kernel_file, char *initrd_file, char *commandline, int noboot);
+#include <stddef.h>
+#include "osfind.h"
+
+extern void lll_boot(char const *kernel_file, char const *initrd_file, char const *commandline, osfind_flags flags, char const *path);
+extern void lll_boot_gzip(char const *kernel_file, char const *initrd_file, char const *commandline, osfind_flags flags, char const *path);
 
 #endif

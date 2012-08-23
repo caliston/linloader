@@ -1,8 +1,8 @@
-LinLoader 0.20 (Binary Distribution)
+Linloader 0.30 (Binary Distribution)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-LinLoader is RISC OS command line program for booting Linux on Acorn
+Linloader is RISC OS command line program for booting Linux on Acorn
 RiscPCs (and hopefully later RISC OS systems), it does not provide a boot
-menu, or shut down the desktop. LinLoader is released under the GNU GPL,
+menu, or shut down the desktop. Linloader is released under the GNU GPL,
 see the file Docs.GPL/txt and is © Timothy Baldwin and others.
 
 Full documentation can be found in the Docs directory.
@@ -10,25 +10,25 @@ Full documentation can be found in the Docs directory.
 
 Disclaimer
 ~~~~~~~~~~
-LinLoader is distributed in the hope that it will be useful, but WITHOUT ANY
+Linloader is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 
 Simple Use
 ~~~~~~~~~~
-LinLoader can be used simply as (for example) :
- LinLoader Image root=/dev/hda3
+Linloader can be used simply as (for example) :
+ Linloader Image root=/dev/hda3
  
 For a complete summary of all options :
- LinLoader --help
+ Linloader --help
 
 If you wish to pass arguments begining with - to the kernel you must prefix
 such arguments with --, for example :
- LinLoader Image -- root=/dev/hda3 -b
+ Linloader Image -- root=/dev/hda3 -b
 
 
 Availability
 ~~~~~~~~~~~~
-LinLoader can be downloaded from :
+Linloader can be downloaded from :
  http://www.reinhouse.freeserve.co.uk/riscos/linloader/

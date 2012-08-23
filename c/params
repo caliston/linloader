@@ -1,0 +1,65 @@
+/*
+ Linloader, Boots Linux/ARM on RISC OS based systems.
+ Copyright (C) 1999  Timothy Baldwin
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/* $Id: params.c,v 1.2 1999/07/20 15:01:49 uid1 Exp $ */
+
+#include <stdlib.h>
+#include <string.h>
+
+#include "osbyte.h"
+
+#include "internal.h"
+
+#define long int
+#include "setup.h"
+#undef long
+
+#define p (*((struct param_struct *)(lll_params + 0x100)))
+
+void lll_setup_params(char const *commandline) {
+  static const os_VDU_VAR_LIST(4) vars = {{
+      os_MODEVAR_LOG2_BPP,
+      os_MODEVAR_XWIND_LIMIT,
+      os_MODEVAR_YWIND_LIMIT,
+      -1
+  }};
+  int values[4];
+
+  p.u1.s.pages_in_bank[0] = lll_rpc_bank1_pages;
+  p.u1.s.pages_in_bank[2] = lll_rpc_bank2_pages;
+  p.u1.s.nr_pages = lll_pages + lll_rpc_vram_pages;
+  p.u1.s.pages_in_vram = lll_rpc_vram_pages;
+
+  if (strlen(commandline) + 1 >= sizeof(p.commandline)) lll_die("Kernel command line to long (maxinum length %i)", sizeof(p.commandline) - 1);
+  strcpy(p.commandline, commandline);
+  p.u1.s.flags = FLAG_READONLY;
+  p.u1.s.page_size = PAGE_SIZE;
+  p.u1.s.adfsdrives = osbyte1(osbyte_READ_CMOS, 135, 0);
+  if (lll_initrd_size) {
+    p.u1.s.initrd_size = lll_initrd_size;
+    p.u1.s.initrd_start = lll_initrd_page * PAGE_SIZE + 0xC0000000;
+  }
+
+  p.u1.s.bytes_per_char_v = 8;
+  os_read_vdu_variables((os_vdu_var_list *)(&vars), values);
+  p.u1.s.bytes_per_char_h = 1 << values[0];
+  p.u1.s.video_num_cols = (values[1] + 1) / 8;
+  p.u1.s.video_num_rows = (values[2] + 1) / 8;
+  os_byte(osbyte_OUTPUT_CURSOR_POSITION, 0, 0, (int *)&p.u1.s.video_x, (int *)&p.u1.s.video_y);
+}

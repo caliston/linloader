@@ -1,0 +1,98 @@
+/*
+ Linloader, Boots Linux/ARM on RISC OS based systems.
+ Copyright (C) 1999  Timothy Baldwin
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+/* $Id: init.c,v 1.3 1999/07/20 15:01:13 uid1 Exp $ */
+
+#include <stdlib.h>
+#include <string.h>
+
+#include <stdio.h>
+#include "kernel.h"
+
+#include "os.h"
+#include "osmodule.h"
+#include "taskwindow.h"
+
+#include "internal.h"
+
+os_dynamic_area_no lll_dynamic_area;
+static byte *da_handler;
+size_t lll_initrd_size, lll_kernel_size;
+byte *lll_initrd, *lll_kernel, *lll_params;
+int lll_noboot;
+unsigned lll_initrd_page;
+
+void lll_free_mem(void) {
+  if (lll_dynamic_area) {
+    osdynamicarea_delete(lll_dynamic_area);
+    lll_dynamic_area = 0;
+  }
+  if (da_handler) {
+    osmodule_free(da_handler);
+    da_handler = 0;
+  }
+}
+
+void lll_init(void) {
+  extern byte lll_da_handler_end, lll_da_handler_start, lll_fixup_code_start, lll_fixup_code_end;
+  unsigned i, fixup_pages;
+  os_page_block *pages;
+  size_t fixup_table_size, fixup_size, fixup_code_size, da_handler_size, initrd_size_page_aligned, da_size;
+  byte *fixup_table, *fixup;
+  if (!lll_noboot && taskwindowtaskinfo_window_task()) lll_die("Linloader can't run in a TaskWindow");
+  lll_id_sys();
+  if (lll_sys_id == 1 || lll_sys_id == 2) lll_die("Linloader does not work on Archimedes or A5000-like systems, to boot Linux on these systems you must use !Linux, which is available from http://www.arm.uk.linux.org/~rmk/armlinux.html");
+  if (lll_sys_to_linux[lll_sys_id] == -1) lll_die("Sorry, Linloader does not support this system, prehaps you should consider adding support yourself and sending patches to tim@reinhouse.freeserve.co.uk");
+  atexit(lll_free_mem);
+
+  da_handler_size = &lll_da_handler_end - &lll_da_handler_start;
+  da_handler = osmodule_alloc(da_handler_size);
+  memcpy(da_handler, &lll_da_handler_start, da_handler_size);
+  xos_synchronise_code_areas(1, da_handler, da_handler + da_handler_size);
+  fixup_table = lll_xmalloc(FIXUP_SIZE);
+  lll_da_ctrl.fixup = fixup_table;
+  memset(fixup_table, 0, FIXUP_SIZE);
+
+  initrd_size_page_aligned = (lll_initrd_size + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
+  lll_initrd_page = lll_da_ctrl.reserve = lll_da_ctrl.target = lll_pages - (initrd_size_page_aligned / PAGE_SIZE);
+  da_size = initrd_size_page_aligned + PARAM_SIZE + lll_kernel_size;
+  lll_dynamic_area = osdynamicarea_create(osdynamicarea_ALLOCATE_AREA, initrd_size_page_aligned, osdynamicarea_ALLOCATE_BASE, 0x180, da_size + da_size / PAGE_SIZE * 8 + PAGE_SIZE * 2, da_handler, &lll_da_ctrl, "Linloader", &lll_initrd, 0);
+  lll_da_ctrl.target = 0;
+  lll_params = lll_initrd + initrd_size_page_aligned;
+  lll_kernel = lll_params + PARAM_SIZE;
+  fixup = os_change_dynamic_area(lll_dynamic_area, PARAM_SIZE + lll_kernel_size) + lll_initrd + initrd_size_page_aligned;
+  memset(lll_kernel + lll_kernel_size, 0, fixup - (lll_kernel + lll_kernel_size));
+  memset(lll_initrd + lll_initrd_size, 0, lll_kernel - (lll_initrd + lll_initrd_size));
+
+  fixup_table_size = lll_da_ctrl.fixup - fixup_table;
+  fixup_size = os_change_dynamic_area(lll_dynamic_area, fixup_table_size + 8 + PAGE_SIZE);
+  memset(fixup, 0, fixup_size);
+  fixup_code_size = &lll_fixup_code_end - &lll_fixup_code_start;
+  memcpy(fixup, &lll_fixup_code_start, fixup_code_size);
+  memcpy(fixup + PAGE_SIZE, fixup_table, fixup_table_size);
+  fixup_pages = fixup_size / PAGE_SIZE;
+  pages = lll_xmalloc(fixup_pages * sizeof(os_page_block));
+  for(i = 0; i < fixup_pages; i++)
+    pages[i].log_addr = fixup + i * PAGE_SIZE;
+  osmemory_page_op(osmemory_GIVEN_LOG_ADDR | osmemory_RETURN_PHYS_ADDR, pages, fixup_pages);
+  for(i = 1; i < fixup_pages; i++)
+    ((byte **)(fixup + fixup_code_size))[i - 1] = pages[i].phys_addr;
+  lll_fixup_physical_addr = (unsigned)pages[0].phys_addr;
+  free(pages);
+}

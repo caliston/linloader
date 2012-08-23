@@ -1,5 +1,5 @@
 
-; LinLoader, Boots Linux/ARM on RISC OS based systems.
+; Linloader, Boots Linux/ARM on RISC OS based systems.
 ; Copyright (C) 1999  Timothy Baldwin
 ;
 ; This program is free software; you can redistribute it and/or modify
@@ -16,35 +16,48 @@
 ; along with this program; if not, write to the Free Software
 ; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-;	$Id$
+;	$Id: fixup.s,v 1.3 1999/07/20 15:00:51 uid1 Exp $
 
 	AREA	FIXUP, CODE, READONLY
 
-	EXPORT	fixup_start
-	EXPORT	fixup_end
+	EXPORT	lll_fixup_code_start
+	EXPORT	lll_fixup_code_end
 
-fixup_start
-	SUB	r3, r3, #1
-	ADR	r4, fixup_end
-loop1	LDMIA	r4!, {r5}
-loop2	LDMIA	r5!, {r6, r7}
-	TEQ	r6, #0
-	BEQ	start_kernel
-loop3	LDMIA	r6!, {r0, r8, r9, r10, r11, r12, r13, r14}
-	STMIA	r7!, {r0, r8, r9, r10, r11, r12, r13, r14}
-	LDMIA	r6!, {r0, r8, r9, r10, r11, r12, r13, r14}
-	STMIA	r7!, {r0, r8, r9, r10, r11, r12, r13, r14}
-	TST	r6, r3
-	BNE	loop3
-	TST	r5, r3
-	BNE	loop2
-	B	loop1
+lll_fixup_code_start
+	sub	r3, r3, #1
+	adr	r4, lll_fixup_code_end
+loop1	ldmia	r4!, {r5}
+loop2	ldmia	r5!, {r6, r7}
+	teq	r6, #0
+	beq	start_kernel
+loop3	ldmia	r6!, {r0, r8, r9, r10, r11, r12, r13, r14}
+	stmia	r7!, {r0, r8, r9, r10, r11, r12, r13, r14}
+	ldmia	r6!, {r0, r8, r9, r10, r11, r12, r13, r14}
+	stmia	r7!, {r0, r8, r9, r10, r11, r12, r13, r14}
+	tst	r6, r3
+	bne	loop3
+	tst	r5, r3
+	bne	loop2
+	b	loop1
 
 start_kernel
-	MOV	r0, #0
-	MOV	pc, r2
+	mov	r3, #0
+	mov	r4, #0
+	mov	r5, #0
+	mov	r6, #0
+	mov	r7, #0
+	mov	r8, #0
+	mov	r9, #0
+	mov	r10, #0
+	mov	r11, #0
+	mov	r12, #0
+	mov	r13, #0
+	mov	r14, #0
+
+	mov	r0, #0
+	mov	pc, r2
 
 	LTORG
-fixup_end
+lll_fixup_code_end
 
 	END
